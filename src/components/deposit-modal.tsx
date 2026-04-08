@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/auth-context";
 import { 
   X, 
   DollarSign, 
@@ -26,6 +27,7 @@ interface DepositModalProps {
 }
 
 export function DepositModal({ isOpen, onClose, onSuccess, editData }: DepositModalProps) {
+  const { user } = useAuth();
   const [amount, setAmount] = useState<string>("");
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
@@ -42,18 +44,16 @@ export function DepositModal({ isOpen, onClose, onSuccess, editData }: DepositMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       if (editData) {
         const { error } = await supabase
           .from("deposits")
           .update({
             amount: Number(amount),
-            date: new Date(date).toISOString(),
+            date: date,
           })
           .eq("id", editData.id);
 
@@ -64,7 +64,7 @@ export function DepositModal({ isOpen, onClose, onSuccess, editData }: DepositMo
           .insert([{
             user_id: user.id,
             amount: Number(amount),
-            date: new Date(date).toISOString(),
+            date: date,
           }]);
 
         if (error) throw error;
@@ -146,17 +146,17 @@ export function DepositModal({ isOpen, onClose, onSuccess, editData }: DepositMo
               <button 
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3.5 px-4 bg-slate-950 border border-white/5 text-slate-600 font-black text-[9px] uppercase tracking-widest hover:text-white transition-all rounded-xl active:scale-95"
+                className="flex-1 py-4 px-4 bg-slate-950 border border-white/5 text-slate-600 font-black text-[9px] uppercase tracking-widest hover:text-white transition-all rounded-xl active:scale-95"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-3.5 px-4 bg-[#C50337] text-white font-black text-[9px] uppercase tracking-widest hover:bg-[#A0022C] transition-all rounded-xl shadow-2xl flex items-center justify-center gap-2 disabled:opacity-30 active:scale-95"
+                className="flex-1 py-4 px-3 bg-[#C50337] text-white font-black text-[9px] uppercase tracking-tighter sm:tracking-widest hover:bg-[#A0022C] transition-all rounded-xl shadow-2xl flex items-center justify-center gap-2 disabled:opacity-30 active:scale-95"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                {editData ? "Confirm Node" : "Execute Injection"}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4 shrink-0" />}
+                <span className="truncate">{editData ? "Confirm Node" : "Execute Injection"}</span>
               </button>
            </div>
         </form>
