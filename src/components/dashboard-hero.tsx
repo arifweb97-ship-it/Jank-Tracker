@@ -194,31 +194,31 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
 
   return (
     <div className="space-y-12 animate-in fade-in duration-700">
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
+      <section className="flex flex-wrap justify-center xl:grid xl:grid-cols-5 gap-3">
         {[
           { label: "Total Spend", value: formatCurrency(cumulativeStats.spend), icon: TrendingUp, color: "text-[#C50337]", bg: "bg-[#C50337]/5" },
           { label: "Ad Balance", value: formatCurrency(balance), icon: DollarSign, 
-            color: balance < 300000 ? "text-rose-500 animate-pulse" : "text-emerald-400", 
-            bg: balance < 300000 ? "bg-rose-500/10 border-rose-500/50" : "bg-emerald-500/5",
+            color: balance < 0 ? "text-rose-500 animate-pulse" : balance < 300000 ? "text-amber-400" : "text-emerald-400", 
+            bg: balance < 0 ? "bg-rose-500/10 border-rose-500/50" : "bg-emerald-500/5",
             isLow: balance < 300000
           },
           { label: "Total Commission", value: formatCurrency(cumulativeStats.commission), icon: Sparkles, color: "text-[#C50337]", bg: "bg-[#C50337]/5" },
           { label: "Net Profit", value: formatCurrency(cumulativeStats.profit), icon: LayoutDashboard, color: cumulativeStats.profit >= 0 ? "text-emerald-400" : "text-rose-400", bg: cumulativeStats.profit >= 0 ? "bg-emerald-500/5" : "bg-rose-500/5" },
           { label: "Total ROAS", value: `${cumulativeStats.roas.toFixed(2)}x`, icon: Target, color: "text-blue-400", bg: "bg-blue-500/5" },
         ].map((stat, i) => (
-          <div key={i} className={`p-5 border ${stat.label === 'Ad Balance' && stat.isLow ? 'border-rose-500/30' : 'border-white/5'} bg-slate-900/40 backdrop-blur-md rounded-xl shadow-2xl relative overflow-hidden group hover:border-[#C50337]/20 transition-all`}>
-            <div className={`absolute top-0 right-0 w-24 h-24 ${stat.bg} blur-3xl -mr-8 -mt-8 opacity-0 group-hover:opacity-100 transition-opacity`} />
-            <div className="flex items-center justify-between mb-5">
-              <div className={`p-2 ${stat.bg} border border-white/5 shrink-0 shadow-inner rounded-lg`}>
-                <stat.icon className={`w-3.5 h-3.5 ${stat.color}`} />
+          <div key={i} className={`flex-1 min-w-[180px] p-4 border ${stat.label === 'Ad Balance' && balance < 0 ? 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : 'border-white/5'} bg-slate-900/40 backdrop-blur-md rounded-xl relative overflow-hidden group hover:border-[#C50337]/20 transition-all`}>
+            <div className={`absolute top-0 right-0 w-20 h-20 ${stat.bg} blur-3xl -mr-8 -mt-8 opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <div className="flex items-center justify-between mb-4">
+              <div className={`p-1.5 ${stat.bg} border border-white/5 shrink-0 shadow-inner rounded-lg`}>
+                <stat.icon className={`w-3 h-3 ${stat.color}`} />
               </div>
               <div className="w-1 h-1 rounded-full bg-white/10" />
             </div>
             <div className="space-y-1 relative z-10">
-              <span className="text-[8px] font-black text-slate-500 tracking-[0.2em] uppercase block leading-none">
+              <span className="text-[7px] font-black text-slate-500 tracking-[0.2em] uppercase block leading-none">
                 {stat.label}
               </span>
-              <div className={`text-lg font-black tracking-tighter leading-none truncate ${stat.label === 'Net Profit' && cumulativeStats.profit < 0 ? 'text-rose-400' : 'text-white'}`}>
+              <div className={`text-[15px] font-black tracking-tighter leading-none truncate ${stat.label === 'Net Profit' && cumulativeStats.profit < 0 ? 'text-rose-400' : 'text-white'}`}>
                 {stat.value}
               </div>
             </div>
