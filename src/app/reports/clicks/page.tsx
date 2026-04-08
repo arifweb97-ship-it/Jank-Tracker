@@ -53,6 +53,7 @@ export default function ClicksReportPage() {
 
   useEffect(() => {
     async function fetchPlacementAnalytics() {
+      if (!user?.id) return;
       setLoading(true);
       try {
         const { data: records } = await supabase
