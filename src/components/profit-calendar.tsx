@@ -81,13 +81,15 @@ export function ProfitCalendar() {
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-
-  const monthlyStats = Object.values(calendarData).reduce((acc, curr) => {
-    acc.spend += curr.spend;
-    acc.commission += curr.commission;
-    acc.profit += curr.profit;
-    return acc;
-  }, { spend: 0, commission: 0, profit: 0 });
+ 
+  const monthlyStats = Object.values(calendarData)
+    .filter(curr => isSameMonth(new Date(curr.date), monthStart))
+    .reduce((acc, curr) => {
+      acc.spend += curr.spend;
+      acc.commission += curr.commission;
+      acc.profit += curr.profit;
+      return acc;
+    }, { spend: 0, commission: 0, profit: 0 });
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
