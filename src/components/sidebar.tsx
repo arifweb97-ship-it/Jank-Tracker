@@ -29,7 +29,7 @@ export function Sidebar() {
   const searchParams = useSearchParams();
   const { role, signOut, user, full_name: fullName } = useAuth();
 
-  const isAdminPath = pathname.startsWith("/admin");
+  const isAdminPath = pathname.startsWith("/admin") || pathname === "/settings";
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
