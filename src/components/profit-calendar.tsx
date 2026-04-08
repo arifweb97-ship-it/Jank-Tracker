@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek } from "date-fns";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from "@/lib/supabase";
@@ -27,15 +27,18 @@ export function ProfitCalendar() {
   
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarStart = startOfWeek(monthStart);
+  const calendarEnd = endOfWeek(monthEnd);
+  
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   useEffect(() => {
     async function fetchCalendarData() {
       setLoading(true);
       try {
         if (!user?.id) return;
-        const startDate = format(monthStart, "yyyy-MM-dd");
-        const endDate = format(monthEnd, "yyyy-MM-dd");
+        const startDate = format(calendarStart, "yyyy-MM-dd");
+        const endDate = format(calendarEnd, "yyyy-MM-dd");
 
         const { data: allRecords } = await supabase
           .from("daily_records")
