@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { 
   AreaChart, 
   Area, 
@@ -83,6 +83,11 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
     shopeeClicks: 0
   });
   const [chartData, setChartData] = useState<any[]>([]);
+  const [visibleLines, setVisibleLines] = useState({
+    profit: true,
+    commission: true,
+    spend: true
+  });
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -147,17 +152,26 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
           shopeeClicks: latest.shopee_clicks
         });
 
-        const sortedChartData = dailyList
-          .map((d: any) => ({
-            date: d.date,
-            spend: d.spend,
-            commission: d.commission,
-            profit: d.commission - d.spend,
-            formattedDate: d.date ? format(new Date(d.date), "dd MMM") : ""
-          }))
-          .slice(-30);
+        // Ensure 30 days of data even if days are missing
+        const last30Days = [];
+        const endDateObj = latestDate || dailyList.length > 0 
+          ? new Date(dailyList[dailyList.length - 1].date) 
+          : new Date();
         
-        setChartData(sortedChartData);
+        for (let i = 29; i >= 0; i--) {
+          const d = subDays(endDateObj, i);
+          const dateStr = format(d, "yyyy-MM-dd");
+          const record = consolidated[dateStr] || { spend: 0, commission: 0 };
+          last30Days.push({
+            date: dateStr,
+            spend: record.spend,
+            commission: record.commission,
+            profit: record.commission - record.spend,
+            formattedDate: format(d, "dd MMM")
+          });
+        }
+        
+        setChartData(last30Days);
 
         // Fetch Deposits
         const { data: deposits, error: depErr } = await supabase
@@ -268,24 +282,31 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
 
           {/* Performance Trajectory Chart */}
           <div className="lg:col-span-2 p-1 border border-white/5 bg-slate-900/40 backdrop-blur-md rounded-xl shadow-xl relative overflow-hidden group flex flex-col h-full">
-            <div className="p-5 border-b border-white/5 flex items-center justify-between">
+            <div className="p-5 border-b border-white/5 flex items-center justify-between bg-slate-900/20">
               <div className="space-y-0.5">
-                <h3 className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Performance Trajectory</h3>
-                <p className="text-[8px] font-bold text-[#C50337]/60 uppercase tracking-tighter">Rolling 30-Day Profit Focus</p>
+                <h3 className="text-[10px] font-black text-slate-300 tracking-widest uppercase">Performance Trajectory</h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Rolling 30-Day Analysis</p>
+                </div>
               </div>
               <div className="flex gap-4">
-                 <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 bg-emerald-500" />
-                   <span className="text-[9px] font-bold text-slate-500 uppercase">Profit</span>
-                 </div>
-                 <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 bg-blue-500" />
-                   <span className="text-[9px] font-bold text-slate-500 uppercase">Comm</span>
-                 </div>
-                 <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 bg-[#C50337]" />
-                   <span className="text-[9px] font-bold text-slate-500 uppercase">Spend</span>
-                 </div>
+                 {[
+                   { id: 'profit' as const, label: "Profit", color: "bg-emerald-500" },
+                   { id: 'commission' as const, label: "Comm", color: "bg-blue-500" },
+                   { id: 'spend' as const, label: "Spend", color: "bg-[#C50337]" }
+                 ].map((item) => (
+                   <button 
+                     key={item.id} 
+                     onClick={() => setVisibleLines(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                     className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${
+                       visibleLines[item.id] ? 'bg-white/[0.05] border-white/10 opacity-100' : 'bg-transparent border-transparent opacity-30 hover:opacity-50'
+                     } border shadow-inner`}
+                   >
+                     <div className={`w-1.5 h-1.5 rounded-full ${item.color} ${visibleLines[item.id] ? 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' : ''}`} />
+                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight">{item.label}</span>
+                   </button>
+                 ))}
               </div>
             </div>
             <div className="flex-1 w-full p-6 pb-2 min-h-[300px]">
@@ -305,13 +326,14 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
                   <XAxis 
                     dataKey="formattedDate" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{fill: '#475569', fontSize: 9, fontWeight: 800}}
+                    tick={{fill: '#475569', fontSize: 8, fontWeight: 800}}
                     dy={10}
+                    interval={Math.ceil(chartData.length / 8)}
                   />
                   <YAxis hide />
                   <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff10', strokeWidth: 1 }} />
@@ -324,6 +346,7 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
                     fillOpacity={1} 
                     fill="url(#colorProfit)" 
                     filter="url(#glow)"
+                    hide={!visibleLines.profit}
                     activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2, className: 'animate-pulse' }}
                   />
                   <Area 
@@ -335,6 +358,7 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
                     strokeDasharray="4 4" 
                     fillOpacity={1} 
                     fill="url(#colorComm)" 
+                    hide={!visibleLines.commission}
                     activeDot={{ r: 4, fill: '#3b82f6' }}
                   />
                   <Area 
@@ -345,6 +369,7 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
                     strokeWidth={1.5} 
                     strokeDasharray="4 4" 
                     fillOpacity={0} 
+                    hide={!visibleLines.spend}
                     activeDot={{ r: 4, fill: '#C50337' }}
                   />
                 </AreaChart>
