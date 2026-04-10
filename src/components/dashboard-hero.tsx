@@ -22,8 +22,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
 import { format, subDays } from "date-fns";
 import { 
-  AreaChart, 
-  Area, 
+  BarChart, 
+  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -311,19 +311,19 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
             </div>
             <div className="flex-1 w-full p-6 pb-2 min-h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <BarChart data={chartData} barGap={1} barCategoryGap="25%">
                   <defs>
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="3" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <linearGradient id="barProfit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.3}/>
                     </linearGradient>
-                    <linearGradient id="colorComm" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <linearGradient id="barComm" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    </linearGradient>
+                    <linearGradient id="barSpend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#C50337" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#C50337" stopOpacity={0.3}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
@@ -337,42 +337,28 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
                   />
                   <YAxis hide />
                   <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff10', strokeWidth: 1 }} />
-                  <Area 
+                  <Bar 
                     name="Net Profit" 
-                    type="monotone" 
                     dataKey="profit" 
-                    stroke="#10b981" 
-                    strokeWidth={4} 
-                    fillOpacity={1} 
-                    fill="url(#colorProfit)" 
-                    filter="url(#glow)"
+                    fill="url(#barProfit)" 
+                    radius={[2, 2, 0, 0]}
                     hide={!visibleLines.profit}
-                    activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2, className: 'animate-pulse' }}
                   />
-                  <Area 
+                  <Bar 
                     name="Commission" 
-                    type="monotone" 
                     dataKey="commission" 
-                    stroke="#3b82f6" 
-                    strokeWidth={1.5} 
-                    strokeDasharray="4 4" 
-                    fillOpacity={1} 
-                    fill="url(#colorComm)" 
+                    fill="url(#barComm)" 
+                    radius={[2, 2, 0, 0]}
                     hide={!visibleLines.commission}
-                    activeDot={{ r: 4, fill: '#3b82f6' }}
                   />
-                  <Area 
+                  <Bar 
                     name="Ad Spend" 
-                    type="monotone" 
                     dataKey="spend" 
-                    stroke="#C50337" 
-                    strokeWidth={1.5} 
-                    strokeDasharray="4 4" 
-                    fillOpacity={0} 
+                    fill="url(#barSpend)" 
+                    radius={[2, 2, 0, 0]}
                     hide={!visibleLines.spend}
-                    activeDot={{ r: 4, fill: '#C50337' }}
                   />
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
