@@ -22,8 +22,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
 import { format, subDays } from "date-fns";
 import { 
-  BarChart, 
+  ComposedChart, 
   Bar, 
+  Area,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -152,8 +153,8 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
           shopeeClicks: latest.shopee_clicks
         });
 
-        // Ensure 30 days of data even if days are missing
-        const last30Days = [];
+        // Ensure 30 days of data but trim leading zeros for better visuals
+        let last30Days = [];
         const endDateObj = latestDate || dailyList.length > 0 
           ? new Date(dailyList[dailyList.length - 1].date) 
           : new Date();
@@ -171,7 +172,11 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
           });
         }
         
-        setChartData(last30Days);
+        // Find first day with data to avoid empty space on the left
+        const firstActiveIdx = last30Days.findIndex(d => d.spend > 0 || d.commission > 0);
+        const trimmedData = firstActiveIdx !== -1 ? last30Days.slice(firstActiveIdx) : last30Days;
+        
+        setChartData(trimmedData);
 
         // Fetch Deposits
         const { data: deposits, error: depErr } = await supabase
@@ -311,19 +316,15 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
             </div>
             <div className="flex-1 w-full p-6 pb-2 min-h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} barGap={1} barCategoryGap="25%">
+                <ComposedChart data={chartData}>
                   <defs>
-                    <linearGradient id="barProfit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
-                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.3}/>
-                    </linearGradient>
-                    <linearGradient id="barComm" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    </linearGradient>
-                    <linearGradient id="barSpend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#C50337" stopOpacity={1}/>
-                      <stop offset="100%" stopColor="#C50337" stopOpacity={0.3}/>
+                    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <linearGradient id="nebulaProfit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff03" vertical={false} />
@@ -336,29 +337,44 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
                     interval={Math.ceil(chartData.length / 8)}
                   />
                   <YAxis hide />
-                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff10', strokeWidth: 1 }} />
-                  <Bar 
-                    name="Net Profit" 
-                    dataKey="profit" 
-                    fill="url(#barProfit)" 
-                    radius={[2, 2, 0, 0]}
-                    hide={!visibleLines.profit}
+                  <Tooltip 
+                    content={<CustomTooltip />} 
+                    cursor={{ stroke: '#ffffff10', strokeWidth: 1 }} 
                   />
+                  
+                  {/* Background Contextual Bars (Spend & Comm) */}
                   <Bar 
                     name="Commission" 
                     dataKey="commission" 
-                    fill="url(#barComm)" 
-                    radius={[2, 2, 0, 0]}
+                    fill="#3b82f6" 
+                    fillOpacity={0.15}
+                    radius={[1, 1, 0, 0]}
+                    barSize={15}
                     hide={!visibleLines.commission}
                   />
                   <Bar 
                     name="Ad Spend" 
                     dataKey="spend" 
-                    fill="url(#barSpend)" 
-                    radius={[2, 2, 0, 0]}
+                    fill="#C50337" 
+                    fillOpacity={0.15}
+                    radius={[1, 1, 0, 0]}
+                    barSize={15}
                     hide={!visibleLines.spend}
                   />
-                </BarChart>
+
+                  {/* Profit Hero Area (Glowing Line) */}
+                  <Area 
+                    name="Net Profit" 
+                    type="monotone" 
+                    dataKey="profit" 
+                    stroke="#10b981" 
+                    strokeWidth={4} 
+                    fill="url(#nebulaProfit)" 
+                    filter="url(#neonGlow)"
+                    hide={!visibleLines.profit}
+                    activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2, className: 'animate-pulse' }}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
