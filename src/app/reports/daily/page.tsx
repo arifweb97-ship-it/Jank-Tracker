@@ -116,7 +116,7 @@ export default function DailyReportPage() {
           }
         />
 
-        <div className="py-8 px-4 md:px-12 max-w-7xl mx-auto w-full space-y-6">
+        <div className="py-6 md:py-8 px-4 md:px-12 max-w-7xl mx-auto w-full space-y-6">
           {loading ? (
             <div className="h-96 flex flex-col items-center justify-center gap-3 text-slate-500">
               <Loader2 className="w-6 h-6 animate-spin text-[#C50337]" />
@@ -124,7 +124,9 @@ export default function DailyReportPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+              
+              {/* DESKTOP VIEW: PRO TABLE */}
+              <div className="hidden md:block bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden">
                 <div className="overflow-x-auto overflow-y-auto max-h-[700px] scrollbar-hide">
                   <table className="w-full text-left border-collapse min-w-[900px]">
                     <thead className="sticky top-0 z-30 bg-[#02060E]/95 backdrop-blur-xl border-b border-white/10">
@@ -168,12 +170,12 @@ export default function DailyReportPage() {
                                 <span className={`text-[9px] font-black ${row.roas < 1 ? 'text-rose-400' : 'text-blue-400'}`}>{row.roas.toFixed(2)}x</span>
                               </div>
                             </td>
-                            <td className="p-4 text-center">
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
-                                row.roi >= 100 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                            <td className="px-3 py-4 text-center">
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border ${
+                                row.roi >= 100 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
                                 row.roi > 0 ? 'bg-[#C50337]/10 text-[#C50337] border border-[#C50337]/20' : 
-                                'bg-rose-600 text-white shadow-lg shadow-rose-600/20' // Aggressive Boncos Alert
-                              } border`}>
+                                'bg-rose-600 text-white'
+                              }`}>
                                 {row.roi.toFixed(1)}%
                               </span>
                             </td>
@@ -201,6 +203,80 @@ export default function DailyReportPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              {/* MOBILE VIEW: ADAPTIVE CARDS */}
+              <div className="md:hidden space-y-4">
+                {currentRecords.map((row) => {
+                  const balance = row.shopee_clicks - row.meta_clicks;
+                  const efficiency = row.meta_clicks > 0 ? (row.shopee_clicks / row.meta_clicks) * 100 : 0;
+                  const isBoncos = row.profit < 0;
+
+                  return (
+                    <div key={row.date} className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl p-5 space-y-5 relative overflow-hidden group active:scale-[0.98] transition-all">
+                      <div className={`absolute top-0 right-0 w-24 h-24 ${isBoncos ? 'bg-rose-500/5' : 'bg-emerald-500/5'} blur-2xl -mr-12 -mt-12`} />
+                      
+                      {/* Header Card: Date & Net */}
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-slate-950 rounded-xl border border-white/5">
+                            <CalendarIcon className="w-3.5 h-3.5 text-[#C50337]" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[12px] font-black text-white">{format(new Date(row.date), "EEEE")}</span>
+                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{format(new Date(row.date), "dd MMM yyyy")}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-0.5">Net Profit</span>
+                          <span className={`text-sm font-black tracking-tighter ${isBoncos ? 'text-rose-400' : 'text-emerald-400'}`}>
+                            {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(row.profit)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Primary Stats Grid */}
+                      <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/5 relative z-10">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Ad Spend</span>
+                          <span className="text-xs font-black text-rose-400 tracking-tight">{new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(row.spend)}</span>
+                        </div>
+                        <div className="flex flex-col gap-1 text-right">
+                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Gross Comm</span>
+                          <span className="text-xs font-black text-[#C50337] tracking-tight">{new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(row.commission)}</span>
+                        </div>
+                      </div>
+
+                      {/* Secondary Performance Grid */}
+                      <div className="grid grid-cols-3 gap-2 relative z-10">
+                        <div className="bg-white/5 rounded-lg p-2 flex flex-col items-center">
+                          <span className="text-[7px] font-bold text-slate-500 uppercase mb-1">ROAS</span>
+                          <span className={`text-[10px] font-black ${row.roas < 1 ? 'text-rose-400' : 'text-blue-400'}`}>{row.roas.toFixed(2)}x</span>
+                        </div>
+                        <div className="bg-white/5 rounded-lg p-2 flex flex-col items-center">
+                          <span className="text-[7px] font-bold text-slate-500 uppercase mb-1">ROI</span>
+                          <span className={`text-[10px] font-black ${isBoncos ? 'text-rose-400' : 'text-emerald-400'}`}>{row.roi.toFixed(0)}%</span>
+                        </div>
+                        <div className="bg-white/5 rounded-lg p-2 flex flex-col items-center">
+                          <span className="text-[7px] font-bold text-slate-500 uppercase mb-1">Clicks</span>
+                          <span className="text-[10px] font-black text-white">{row.meta_clicks}/{row.shopee_clicks}</span>
+                        </div>
+                      </div>
+
+                      {/* Footer Details */}
+                      <div className="flex items-center justify-between pt-1 opacity-60">
+                         <div className="flex items-center gap-1.5">
+                            <div className={`w-1 h-1 rounded-full ${balance < 0 ? 'bg-rose-400' : 'bg-emerald-400'}`} />
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Balance: {balance.toLocaleString()}</span>
+                         </div>
+                         <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Eff: {efficiency.toFixed(1)}%</span>
+                            <div className={`w-1 h-1 rounded-full ${efficiency < 70 ? 'bg-rose-400' : 'bg-blue-400'}`} />
+                         </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* PAGINATION UI */}

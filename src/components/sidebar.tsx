@@ -24,7 +24,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function Sidebar() {
+export function Sidebar({ isOpen }: { isOpen?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { role, signOut, user, full_name: fullName } = useAuth();
@@ -49,7 +49,10 @@ export function Sidebar() {
   const currentView = searchParams.get("view") || "users";
 
   return (
-    <aside className="w-60 bg-[#02060E]/95 backdrop-blur-3xl border-r border-white/5 flex flex-col h-screen fixed left-0 top-0 z-40 transition-all duration-500 shadow-2xl overflow-hidden rounded-none">
+    <aside className={cn(
+      "w-60 bg-[#02060E]/95 backdrop-blur-3xl border-r border-white/5 flex flex-col h-screen fixed left-0 top-0 z-[70] transition-sidebar shadow-2xl overflow-hidden rounded-none lg:translate-x-0",
+      isOpen ? "translate-x-0" : "-translate-x-full"
+    )}>
       {/* BRANDING SECTION */}
       <div className="px-6 py-10 border-b border-white/5">
         <Link href={isAdminPath ? "/admin" : "/dashboard"} className="group flex items-baseline gap-2 outline-none">

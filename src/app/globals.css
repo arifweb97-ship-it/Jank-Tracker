@@ -62,3 +62,26 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
 }
+
+/* Responsive Utilities */
+@layer utilities {
+  .mobile-only {
+    @apply flex md:hidden;
+  }
+  .desktop-only {
+    @apply hidden md:flex;
+  }
+}
+
+/* Sidebar Mobile State */
+.sidebar-open {
+  @apply translate-x-0;
+}
+.sidebar-closed {
+  @apply -translate-x-full lg:translate-x-0;
+}
+
+/* Smooth transitions */
+.transition-sidebar {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

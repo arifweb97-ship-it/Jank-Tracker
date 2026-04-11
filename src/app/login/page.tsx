@@ -1,19 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { 
   Mail, 
   ArrowRight, 
-  Loader2
+  Loader2,
+  ShieldCheck,
+  Lock,
+  Smartphone,
+  ChevronLeft
 } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<'identify' | 'verify'>('identify');
+  const [tempIdentity, setTempIdentity] = useState<any>(null);
+  const [otp, setOtp] = useState(["", "", "", ""]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
   const { user, role } = useAuth();
 
@@ -35,10 +49,10 @@ export default function LoginPage() {
     setError(null);
     
     try {
-      // 🛡️ JanK Tracker: Identity Verification (Passwordless)
+      // 🛡️ JanK Tracker: Step 1 - Identity Discovery
       const [{ data: profiles }, { data: r_requests }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("email", email).limit(1),
-        supabase.from("access_requests").select("*").eq("email", email).eq("status", "approved").limit(1)
+        supabase.from("profiles").select("*").eq("email", email.trim()).limit(1),
+        supabase.from("access_requests").select("*").eq("email", email.trim()).eq("status", "approved").limit(1)
       ]);
 
       const identity = (profiles && profiles[0]) || (r_requests && r_requests[0]);
@@ -50,12 +64,24 @@ export default function LoginPage() {
           return;
         }
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("jank_auth_bypass_email", email);
-          // Redirect immediately
-          const is_admin = (identity as any).role === "admin";
-          window.location.href = is_admin ? "/admin" : "/dashboard";
+        // 🟢 ADMIN BYPASS: Direct Access
+        if ((identity as any).role === "admin") {
+           if (typeof window !== "undefined") {
+              localStorage.setItem("jank_auth_bypass_email", (identity as any).email);
+              window.location.href = "/admin";
+           }
+           return;
         }
+
+        // Check if phone exists (required for 2FA for regular users)
+        if (!(identity as any).phone) {
+          setError("Security Fault: No phone number registered. Contact Administrator.");
+          setLoading(false);
+          return;
+        }
+
+        setTempIdentity(identity);
+        setStep('verify');
       } else {
         setError("Access Denied: Node not found in registry.");
       }
@@ -65,6 +91,65 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const combinedCode = otp.join("");
+    if (combinedCode.length < 4 || !tempIdentity) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Extract last 4 digits (sanitize: only digits)
+      const phoneClean = tempIdentity.phone.replace(/\D/g, '');
+      const expectedCode = phoneClean.slice(-4);
+      
+      if (combinedCode === expectedCode) {
+        // 🔐 Security Node Decrypted
+        if (typeof window !== "undefined") {
+          localStorage.setItem("jank_auth_bypass_email", tempIdentity.email);
+          window.location.href = "/dashboard";
+        }
+      } else {
+        setError("Security Token Mismatch: Access Code Incorrect.");
+        setOtp(["", "", "", ""]);
+        inputRefs.current[0]?.focus();
+      }
+    } catch (err: any) {
+      setError("Crypto Failure: Decryption sequence interrupted.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+     if (value.length > 1) value = value.slice(-1);
+     if (!/^\d*$/.test(value)) return;
+
+     const newOtp = [...otp];
+     newOtp[index] = value;
+     setOtp(newOtp);
+
+     if (value && index < 3) {
+        inputRefs.current[index + 1]?.focus();
+     }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+     if (e.key === 'Backspace' && !otp[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus();
+     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+     const pastedData = e.clipboardData.getData('text').slice(0, 4).replace(/\D/g, '');
+     if (pastedData.length === 4) {
+        setOtp(pastedData.split(''));
+        inputRefs.current[3]?.focus();
+     }
+  };
+
 
   return (
     <div className="min-h-screen bg-[#02060E] flex flex-col items-center justify-center p-6 selection:bg-[#C50337]/30 font-inter relative overflow-hidden">
@@ -86,22 +171,70 @@ export default function LoginPage() {
             </div>
         </header>
 
-        <form onSubmit={handleAuth} className="space-y-6">
+        <form onSubmit={step === 'identify' ? handleAuth : handleVerify} className="space-y-6">
           <div className="space-y-5">
-             <div className="space-y-2.5">
-                <label className="text-[11px] font-bold text-slate-500 tracking-wide px-1">Network Identity</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-[#C50337] transition-colors" />
-                  <input 
-                    type="email" 
-                    required 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@company.id"
-                    className="w-full h-14 bg-slate-950/50 border border-white/5 pl-12 pr-4 text-white text-sm focus:border-[#C50337]/50 focus:ring-1 focus:ring-[#C50337]/20 outline-none transition-all rounded-xl placeholder:text-slate-700 font-medium"
-                  />
+             {step === 'identify' ? (
+                <div className="space-y-2.5 animate-in slide-in-from-left-4 duration-300">
+                   <div className="flex items-center justify-between px-1">
+                      <label className="text-[11px] font-bold text-slate-500 tracking-wide">Network Identity</label>
+                      <span className="text-[9px] font-black text-[#C50337]/40 uppercase tracking-widest">Step 01</span>
+                   </div>
+                   <div className="relative group">
+                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-[#C50337] transition-colors" />
+                     <input 
+                       type="email" 
+                       required 
+                       value={email}
+                       onChange={(e) => setEmail(e.target.value)}
+                       placeholder="name@company.id"
+                       className="w-full h-14 bg-slate-950/50 border border-white/5 pl-12 pr-4 text-white text-sm focus:border-[#C50337]/50 focus:ring-1 focus:ring-[#C50337]/20 outline-none transition-all rounded-xl placeholder:text-slate-700 font-medium"
+                     />
+                   </div>
                 </div>
-             </div>
+             ) : (
+                <div className="space-y-4 animate-in slide-in-from-right-4 duration-500">
+                   <div className="flex items-center justify-between px-1">
+                      <button 
+                        type="button" 
+                        onClick={() => { setStep('identify'); setError(null); setOtp(["", "", "", ""]); }}
+                        className="text-[10px] font-black text-[#C50337] uppercase tracking-widest flex items-center gap-1 hover:opacity-70 transition-opacity"
+                      >
+                         <ChevronLeft className="w-3 h-3" /> Back
+                      </button>
+                      <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Secure Step 02</span>
+                   </div>
+                   
+                   <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl mb-2">
+                      <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
+                        Identity confirmed for <span className="text-white font-bold">{tempIdentity.email}</span>. Please enter the <span className="text-[#C50337] font-black underline decoration-[#C50337]/30 underline-offset-4">last 4 digits</span> of your registered phone number.
+                      </p>
+                   </div>
+
+                   <div className="space-y-4">
+                      <label className="text-[11px] font-bold text-slate-500 tracking-wide px-1 block text-center">Verification Code</label>
+                      <div className="flex justify-between gap-3 px-2">
+                        {otp.map((digit, index) => (
+                           <input
+                              key={index}
+                              ref={el => { inputRefs.current[index] = el; }}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="\d*"
+                              maxLength={1}
+                              value={digit}
+                              onChange={e => handleOtpChange(index, e.target.value)}
+                              onKeyDown={e => handleOtpKeyDown(index, e)}
+                              onPaste={index === 0 ? handlePaste : undefined}
+                              className={cn(
+                                 "w-[68px] h-20 bg-slate-950/50 border border-white/5 text-center text-3xl font-black text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/10 outline-none transition-all rounded-2xl shadow-inner",
+                                 digit && "border-white/10"
+                              )}
+                           />
+                        ))}
+                      </div>
+                   </div>
+                </div>
+             )}
 
              {error && (
                <div className="p-4 bg-rose-500/5 border border-rose-500/20 text-rose-500 text-[11px] font-semibold tracking-wide text-center rounded-xl animate-in shake duration-300">
@@ -113,14 +246,23 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-[#C50337] hover:bg-[#A0022C] disabled:bg-slate-800 disabled:opacity-50 text-white font-bold text-sm tracking-wide flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-2xl shadow-[#C50337]/20 group rounded-xl"
+            className={cn(
+               "w-full h-14 font-bold text-sm tracking-wide flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-2xl group rounded-xl",
+               step === 'identify' 
+                  ? "bg-[#C50337] hover:bg-[#A0022C] shadow-[#C50337]/20" 
+                  : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+            )}
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
-                <span>Access System</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span>{step === 'identify' ? 'Access System' : 'Verify Identity'}</span>
+                {step === 'identify' ? (
+                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                ) : (
+                   <ShieldCheck className="w-4 h-4" />
+                )}
               </>
             )}
           </button>

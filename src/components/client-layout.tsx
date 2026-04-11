@@ -3,27 +3,46 @@
 import { useAuth } from "@/context/auth-context";
 import { Sidebar } from "@/components/sidebar";
 import { usePathname } from "next/navigation";
-import { Loader2, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MobileHeader } from "@/components/mobile-header";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Pages that DON'T show the sidebar
   const isAuthPage = pathname === "/login" || pathname === "/";
-
-  // 🛡️ Instant Entrance: Removed the global blocking loader as per user request.
-  // Performance is now prioritized by letting the app shell render immediately.
-
-  // If it's a dashboard page and user is NOT logged in, we could redirect here, 
-  // but usually it's better to handle it per-page or in middleware.
-  // For now, we just hide the sidebar.
   const showSidebar = !isAuthPage && user;
 
+  // Close sidebar when navigating on mobile
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
   return (
-    <div className="flex relative z-10 w-full min-h-screen">
-      {showSidebar && <Sidebar />}
-      <main className={`flex-1 min-h-screen transition-all duration-500 relative overflow-x-hidden ${showSidebar ? 'ml-60' : 'ml-0'}`}>
+    <div className="flex relative z-10 w-full min-h-screen overflow-x-hidden">
+      {showSidebar && (
+        <>
+          <MobileHeader 
+            isOpen={isSidebarOpen} 
+            toggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+          />
+          <Sidebar isOpen={isSidebarOpen} />
+          
+          {/* Backdrop for mobile */}
+          {isSidebarOpen && (
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+        </>
+      )}
+      
+      <main className={`flex-1 min-h-screen transition-all duration-500 relative overflow-x-hidden 
+        ${showSidebar ? 'lg:ml-60 pt-[60px] lg:pt-0' : 'ml-0'}`}
+      >
         {children}
       </main>
     </div>

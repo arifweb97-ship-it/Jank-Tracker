@@ -211,7 +211,7 @@ export default function AdminConsole() {
 
   return (
     <ProtectedRoute adminOnly>
-      <div className="p-12 relative animate-in fade-in duration-1000 overflow-x-hidden">
+      <div className="p-4 sm:p-8 md:p-12 relative animate-in fade-in duration-1000 overflow-x-hidden">
       {/* EXECUTIVE SYSTEM NOTICE MODAL */}
       <SystemNotice 
          isOpen={notice.isOpen}
@@ -226,16 +226,16 @@ export default function AdminConsole() {
 
       <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-[#C50337]/5 blur-[120px] rounded-full -z-10" />
 
-      <header className="flex justify-between items-end mb-16 px-2">
+      <header className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 mb-12 md:mb-16 px-2">
          <div className="flex flex-col">
-            <h2 className="text-4xl font-extrabold text-white tracking-tighter capitalize">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tighter capitalize">
               User Directory
             </h2>
-            <p className="text-[11px] font-semibold text-slate-500 tracking-[0.05em] mt-3 italic">
+            <p className="text-[10px] md:text-[11px] font-semibold text-slate-500 tracking-[0.05em] mt-2 md:mt-3 italic">
               Platform Governance Hub
             </p>
          </div>
-         <div className="flex items-center gap-4">
+         <div className="flex flex-wrap items-center gap-3 md:gap-4">
             <button 
               onClick={() => {
                 setEditingUser(null);
@@ -245,47 +245,59 @@ export default function AdminConsole() {
                 setNewUserAddress("");
                 setShowAddUser(true);
               }}
-              className="px-6 py-2 bg-[#C50337] text-white text-[11px] font-bold tracking-widest flex items-center gap-2 hover:bg-[#A0022C] transition-all rounded shadow-lg shadow-[#C50337]/20"
+              className="flex-1 sm:flex-none px-6 py-3 md:py-2 bg-[#C50337] text-white text-[10px] md:text-[11px] font-bold tracking-widest flex items-center justify-center gap-2 hover:bg-[#A0022C] transition-all rounded shadow-lg shadow-[#C50337]/20 active:scale-95"
             >
               <Plus className="w-4 h-4" /> Generate User
             </button>
-            <div className="px-4 py-2 bg-slate-900 border border-white/5 flex items-center gap-3 shadow-xl rounded">
+            <div className="px-4 py-3 md:py-2 bg-slate-900 border border-white/5 flex items-center gap-3 shadow-xl rounded">
                <Database className="w-4 h-4 text-slate-600" />
-               <span className="text-[10px] font-bold text-slate-400 tracking-widest pointer-events-none">Stable</span>
+               <span className="text-[9px] md:text-[10px] font-bold text-slate-400 tracking-widest pointer-events-none">Stable</span>
             </div>
          </div>
       </header>
 
       {/* Generator Modal */}
       {showAddUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-           <div className="bg-slate-900 border border-white/5 w-full max-w-md p-10 shadow-2xl rounded-2xl relative overflow-hidden animate-in zoom-in-95 duration-300">
-              <button onClick={() => { setShowAddUser(false); setEditingUser(null); }} className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5"/></button>
-              <h3 className="text-2xl font-bold text-white mb-2 tracking-tighter">{editingUser ? 'Edit Identity Node' : 'Generate New Identity'}</h3>
-              <p className="text-slate-500 text-xs mb-8">{editingUser ? 'Update the registry information for this user node.' : 'Register a new secure node in the platform registry.'}</p>
-              <form onSubmit={handleCreateUser} className="space-y-6">
-                 <div className="grid grid-cols-2 gap-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in">
+           <div className="bg-slate-900 border border-white/5 w-full max-w-md p-6 md:p-10 shadow-2xl rounded-2xl relative overflow-hidden animate-in zoom-in-95 duration-300">
+              <button 
+                onClick={() => { setShowAddUser(false); setEditingUser(null); }} 
+                className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5"/>
+              </button>
+              
+              <h3 className="text-xl md:text-2xl font-bold text-white mb-2 tracking-tighter">
+                {editingUser ? 'Edit Identity Node' : 'Generate New Identity'}
+              </h3>
+              
+              <p className="text-slate-500 text-[10px] md:text-xs mb-8">
+                {editingUser ? 'Update the registry information for this user node.' : 'Register a new secure node in the platform registry.'}
+              </p>
+              
+              <form onSubmit={handleCreateUser} className="space-y-4 md:space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                       <label className="text-[10px] font-bold text-slate-500 tracking-wider">Full Name</label>
+                       <label className="text-[9px] md:text-[10px] font-bold text-slate-500 tracking-wider">Full Name</label>
                        <input type="text" required value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="w-full bg-slate-950 border border-white/5 p-3 text-white text-xs focus:border-[#C50337]/50 outline-none rounded-lg transition-all font-bold" placeholder="John Doe"/>
                     </div>
                     <div className="space-y-2">
-                       <label className="text-[10px] font-bold text-slate-500 tracking-wider">Email Address</label>
+                       <label className="text-[9px] md:text-[10px] font-bold text-slate-500 tracking-wider">Email Address</label>
                        <input type="email" required value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className="w-full bg-slate-950 border border-white/5 p-3 text-white text-xs focus:border-[#C50337]/50 outline-none rounded-lg transition-all font-bold" placeholder="user@jank.id"/>
                     </div>
                  </div>
 
                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 tracking-wider">Phone Number</label>
+                    <label className="text-[9px] md:text-[10px] font-bold text-slate-500 tracking-wider">Phone Number</label>
                     <input type="text" value={newUserPhone} onChange={(e) => setNewUserPhone(e.target.value)} className="w-full bg-slate-950 border border-white/5 p-3 text-white text-xs focus:border-[#C50337]/50 outline-none rounded-lg transition-all font-bold" placeholder="+62..."/>
                  </div>
 
                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 tracking-wider">Physical Address</label>
+                    <label className="text-[9px] md:text-[10px] font-bold text-slate-500 tracking-wider">Physical Address</label>
                     <textarea rows={2} value={newUserAddress} onChange={(e) => setNewUserAddress(e.target.value)} className="w-full bg-slate-950 border border-white/5 p-3 text-white text-xs focus:border-[#C50337]/50 outline-none rounded-lg resize-none transition-all font-bold" placeholder="Enter full address..."/>
                  </div>
 
-                 <button type="submit" className="w-full py-4 bg-[#C50337] text-white font-bold text-[11px] tracking-wider hover:bg-[#A0022C] transition-all rounded-lg shadow-xl shadow-[#C50337]/10 active:scale-95">
+                 <button type="submit" className="w-full py-4 bg-[#C50337] text-white font-bold text-[10px] md:text-[11px] tracking-wider hover:bg-[#A0022C] transition-all rounded-lg shadow-xl shadow-[#C50337]/10 active:scale-95">
                    {editingUser ? 'Save Identity Changes' : 'Initialize Identity Node'}
                  </button>
               </form>
@@ -305,135 +317,238 @@ export default function AdminConsole() {
         </div>
       ) : (
         <div className="animate-in slide-in-from-bottom-2 duration-700">
-        <div className="bg-slate-900/50 border border-white/5 shadow-2xl rounded-xl relative z-30">
-              <table className="w-full text-left border-collapse">
-                 <thead className="bg-[#02060E] border-b border-white/5">
-                    <tr>
-                       <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Identity Node</th>
-                       <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Assignment</th>
-                       <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Contact Node</th>
-                       <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Deployment</th>
-                       <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider text-right">Actions</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-white/5">
-                    {data.map((p) => (
-                       <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
-                           <td className="px-8 py-4">
-                             <div className="flex items-center gap-4">
-                                 <div className="w-10 h-10 bg-slate-950 border border-white/10 flex items-center justify-center rounded-lg shadow-inner group-hover:border-[#C50337]/50 transition-all duration-500">
-                                    {p.full_name ? <UserIcon className="w-5 h-5 text-[#C50337]" /> : <Users className="w-5 h-5 text-slate-700 group-hover:text-white transition-colors" />}
-                                 </div>
-                                 <div className="flex flex-col gap-0.5">
-                                    <span className="text-sm font-black text-white tracking-tight leading-none">{p.full_name || "Unknown Identity"}</span>
-                                    <span className="text-[9px] font-medium text-slate-500 tracking-wide opacity-80">{p.email}</span>
-                                    <div className="flex items-center gap-2.5 mt-1">
-                                      <span className="px-1.5 py-0.5 bg-slate-800/40 text-[7px] font-bold text-slate-600 tracking-wider rounded-sm border border-white/5">{p.id.slice(0, 8)}</span>
-                                    </div>
-                                 </div>
-                             </div>
-                           </td>
-                           <td className="px-8 py-4">
-                             <div className="flex items-center gap-2">
-                                <span className={cn(
-                                   "px-3 py-1 text-[9px] font-bold tracking-wider rounded-full border transition-all duration-500 capitalize",
-                                   p.role === 'admin' 
-                                    ? "bg-[#C50337]/10 text-[#C50337] border-[#C50337]/20" 
-                                    : "bg-slate-900/50 text-slate-500 border-white/5"
-                                )}>
-                                   {p.role}
-                                </span>
-                                {p.is_locked && (
-                                  <span className="px-2.5 py-1 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[8px] font-bold tracking-wide rounded-full flex items-center gap-1 animate-pulse">
-                                    <Lock className="w-2.5 h-2.5" /> Locked
-                                  </span>
-                                )}
-                             </div>
-                           </td>
-                           <td className="px-8 py-4">
-                             <div className="flex flex-col gap-1.5 max-w-[200px]">
-                                {p.phone ? (
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="w-3 h-3 text-[#C50337]" />
-                                    <span className="text-[10px] font-bold text-white tracking-tight">{p.phone}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[9px] font-bold text-slate-600 italic tracking-widest">No Telpon</span>
-                                )}
-                                {p.address ? (
-                                  <div className="flex items-start gap-2">
-                                    <MapPin className="w-3 h-3 text-[#C50337] shrink-0 mt-0.5" />
-                                    <span className="text-[9px] font-bold text-slate-500 leading-tight line-clamp-2">{p.address}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[9px] font-bold text-slate-600 italic tracking-widest">No Alamat</span>
-                                )}
-                             </div>
-                           </td>
-                           <td className="px-8 py-4">
-                             <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-white/90 tracking-widest leading-none">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
-                                <span className="text-[7px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">Deployment</span>
-                             </div>
-                           </td>
-                           <td className="px-8 py-4 text-right relative">
-                             <div className="flex justify-end items-center gap-2 manage-menu-container overflow-visible">
-                                <button 
-                                  onClick={() => setActiveMenu(activeMenu === p.id ? null : p.id)}
-                                  className={cn(
-                                    "px-4 py-2 text-[10px] font-bold tracking-tight transition-all duration-300 rounded-lg flex items-center gap-2.5 border transition-all",
-                                    activeMenu === p.id 
-                                      ? "bg-[#C50337] text-white border-transparent" 
-                                      : "bg-slate-950/30 hover:bg-[#C50337]/10 text-slate-400 hover:text-white border-white/5 hover:border-[#C50337]/20"
-                                  )}
-                                >
-                                  Manage <MoreVertical className="w-3 h-3 opacity-50" />
-                                </button>
-                                
-                                {activeMenu === p.id && (
-                                  <div className={cn(
-                                    "absolute right-8 w-52 bg-[#0B121F]/98 backdrop-blur-3xl border border-white/10 shadow-[0_15px_40px_rgba(0,0,0,0.6)] z-[400] rounded-xl overflow-hidden animate-in fade-in duration-300",
-                                    data.indexOf(p) === data.length - 1 ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2"
+          
+          {/* MOBILE VIEW CARD REGISTRY */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {data.map((p) => (
+              <div key={p.id} className="bg-slate-900/40 border border-white/5 p-6 rounded-xl flex flex-col gap-6 relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 p-4">
+                    <button 
+                      onClick={() => setActiveMenu(activeMenu === p.id ? null : p.id)}
+                      className={cn(
+                        "p-2 rounded-lg transition-all border",
+                        activeMenu === p.id 
+                          ? "bg-[#C50337] text-white border-transparent" 
+                          : "bg-slate-950/30 text-slate-500 border-white/5"
+                      )}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    
+                    {activeMenu === p.id && (
+                      <div className="absolute right-4 top-14 w-52 bg-[#0B121F] border border-white/10 shadow-2xl z-50 rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-1.5 grayscale-[0.5] hover:grayscale-0 transition-all">
+                           <button 
+                             onClick={() => { 
+                               setEditingUser(p);
+                               setNewUserEmail(p.email);
+                               setNewUserName(p.full_name || "");
+                               setNewUserPhone(p.phone || "");
+                               setNewUserAddress(p.address || "");
+                               setShowAddUser(true);
+                               setActiveMenu(null); 
+                             }}
+                             className="w-full flex items-center gap-3 px-3.5 py-3 text-[10px] font-bold text-slate-300 hover:bg-[#C50337]/10 hover:text-white transition-all rounded-lg"
+                           >
+                             <Activity className="w-3.5 h-3.5 text-blue-500" /> Edit Identity
+                           </button>
+                           <button 
+                             onClick={() => { handleToggleLock(p); setActiveMenu(null); }}
+                             className="w-full flex items-center gap-3 px-3.5 py-3 text-[10px] font-bold text-slate-300 hover:bg-amber-500/10 hover:text-white transition-all rounded-lg"
+                           >
+                             {p.is_locked ? <Unlock className="w-3.5 h-3.5 text-emerald-500" /> : <Lock className="w-3.5 h-3.5 text-amber-500" />}
+                             {p.is_locked ? "Unlock Registry" : "Lock Identity"}
+                           </button>
+                           <div className="my-1 border-t border-white/5 mx-2" />
+                           <button 
+                             onClick={() => { handleDeleteUser(p); setActiveMenu(null); }}
+                             className="w-full flex items-center gap-3 px-3.5 py-3 text-[10px] font-bold text-rose-500/60 hover:bg-rose-500/10 hover:text-rose-500 transition-all rounded-lg"
+                           >
+                             <Trash2 className="w-3.5 h-3.5" /> DELETE IDENTITY
+                           </button>
+                        </div>
+                      </div>
+                    )}
+                 </div>
+
+                 <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-950 border border-white/10 flex items-center justify-center rounded-xl shrink-0">
+                       {p.full_name ? <UserIcon className="w-6 h-6 text-[#C50337]" /> : <Users className="w-6 h-6 text-slate-700" />}
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                       <span className="text-base font-black text-white truncate tracking-tight">{p.full_name || "Unknown Identity"}</span>
+                       <span className="text-[10px] font-medium text-slate-500 truncate tracking-wide">{p.email}</span>
+                       <span className="mt-1 w-fit px-1.5 py-0.5 bg-slate-800 text-[8px] font-bold text-slate-400 tracking-wider rounded border border-white/5 uppercase">{p.id.slice(0, 8)}</span>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                    <div className="flex flex-col gap-1.5">
+                       <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase">Assignment</span>
+                       <div className="flex flex-wrap gap-2">
+                          <span className={cn(
+                             "px-2.5 py-0.5 text-[8px] font-black tracking-widest rounded-full border border-white/5 uppercase",
+                             p.role === 'admin' ? "bg-[#C50337]/20 text-[#C50337]" : "bg-slate-800 text-slate-400"
+                          )}>
+                             {p.role}
+                          </span>
+                          {p.is_locked && (
+                            <span className="px-2 py-0.5 bg-rose-500/20 text-rose-500 text-[8px] font-bold tracking-widest rounded-full flex items-center gap-1 border border-rose-500/10">
+                              <Lock className="w-2 h-2" /> Locked
+                            </span>
+                          )}
+                       </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                       <span className="text-[9px] font-bold text-slate-600 tracking-widest uppercase">Deployment</span>
+                       <span className="text-xs font-black text-white/80">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
+                    </div>
+                 </div>
+
+                 <div className="space-y-3 bg-slate-950/40 p-4 rounded-lg border border-white/5">
+                    <div className="flex items-center gap-3">
+                       <Phone className="w-3.5 h-3.5 text-[#C50337]" />
+                       <span className="text-[11px] font-bold text-slate-300">{p.phone || 'No Telpon Registered'}</span>
+                    </div>
+                    <div className="flex items-start gap-3">
+                       <MapPin className="w-3.5 h-3.5 text-[#C50337] shrink-0 mt-0.5" />
+                       <span className="text-[10px] font-medium text-slate-400 leading-relaxed italic line-clamp-2">{p.address || 'Address not registered'}</span>
+                    </div>
+                 </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP VIEW TABLE REGISTRY */}
+          <div className="hidden md:block bg-slate-900/50 border border-white/5 shadow-2xl rounded-xl relative z-30 overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                   <thead className="bg-[#02060E] border-b border-white/5">
+                      <tr>
+                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Identity Node</th>
+                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Assignment</th>
+                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Contact Node</th>
+                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Deployment</th>
+                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-white/5">
+                      {data.map((p) => (
+                         <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
+                             <td className="px-8 py-4">
+                               <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 bg-slate-950 border border-white/10 flex items-center justify-center rounded-lg shadow-inner group-hover:border-[#C50337]/50 transition-all duration-500">
+                                      {p.full_name ? <UserIcon className="w-5 h-5 text-[#C50337]" /> : <Users className="w-5 h-5 text-slate-700 group-hover:text-white transition-colors" />}
+                                   </div>
+                                   <div className="flex flex-col gap-0.5">
+                                      <span className="text-sm font-black text-white tracking-tight leading-none">{p.full_name || "Unknown Identity"}</span>
+                                      <span className="text-[9px] font-medium text-slate-500 tracking-wide opacity-80">{p.email}</span>
+                                      <div className="flex items-center gap-2.5 mt-1">
+                                        <span className="px-1.5 py-0.5 bg-slate-800/40 text-[7px] font-bold text-slate-600 tracking-wider rounded-sm border border-white/5">{p.id.slice(0, 8)}</span>
+                                      </div>
+                                   </div>
+                               </div>
+                             </td>
+                             <td className="px-8 py-4">
+                               <div className="flex items-center gap-2">
+                                  <span className={cn(
+                                     "px-3 py-1 text-[9px] font-bold tracking-wider rounded-full border transition-all duration-500 capitalize",
+                                     p.role === 'admin' 
+                                      ? "bg-[#C50337]/10 text-[#C50337] border-[#C50337]/20" 
+                                      : "bg-slate-900/50 text-slate-500 border-white/5"
                                   )}>
-                                     <div className="p-1.5">
-                                       <button 
-                                         onClick={() => { 
-                                           setEditingUser(p);
-                                           setNewUserEmail(p.email);
-                                           setNewUserName(p.full_name || "");
-                                           setNewUserPhone(p.phone || "");
-                                           setNewUserAddress(p.address || "");
-                                           setShowAddUser(true);
-                                           setActiveMenu(null); 
-                                         }}
-                                         className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[10px] font-bold text-slate-300 hover:bg-[#C50337]/10 hover:text-white transition-all rounded-lg group tracking-tight"
-                                       >
-                                         <Activity className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" /> Edit Identity
-                                       </button>
-                                       <button 
-                                         onClick={() => { handleToggleLock(p); setActiveMenu(null); }}
-                                         className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[10px] font-bold text-slate-300 hover:bg-amber-500/10 hover:text-white transition-all rounded-lg group tracking-tight"
-                                       >
-                                         {p.is_locked ? <Unlock className="w-3.5 h-3.5 text-emerald-500" /> : <Lock className="w-3.5 h-3.5 text-amber-500" />}
-                                         {p.is_locked ? "Unlock Registry" : "Lock Identity"}
-                                       </button>
-                                       <div className="my-1 border-t border-white/5 mx-2" />
-                                       <button 
-                                         onClick={() => { handleDeleteUser(p); setActiveMenu(null); }}
-                                         className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[10px] font-bold text-rose-500/60 hover:bg-rose-500/10 hover:text-rose-500 transition-all rounded-lg group tracking-tight"
-                                       >
-                                         <Trash2 className="w-3.5 h-3.5" /> DELETE IDENTITY
-                                       </button>
-                                     </div>
-                                  </div>
-                                )}
-                             </div>
-                           </td>
-                       </tr>
-                    ))}
-                  </tbody>
-              </table>
-           </div>
+                                     {p.role}
+                                  </span>
+                                  {p.is_locked && (
+                                    <span className="px-2.5 py-1 bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[8px] font-bold tracking-wide rounded-full flex items-center gap-1 animate-pulse">
+                                      <Lock className="w-2.5 h-2.5" /> Locked
+                                    </span>
+                                  )}
+                               </div>
+                             </td>
+                             <td className="px-8 py-4">
+                               <div className="flex flex-col gap-1.5 max-w-[200px]">
+                                  {p.phone ? (
+                                    <div className="flex items-center gap-2">
+                                      <Phone className="w-3 h-3 text-[#C50337]" />
+                                      <span className="text-[10px] font-bold text-white tracking-tight">{p.phone}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[9px] font-bold text-slate-600 italic tracking-widest">No Telpon</span>
+                                  )}
+                                  {p.address ? (
+                                    <div className="flex items-start gap-2">
+                                      <MapPin className="w-3 h-3 text-[#C50337] shrink-0 mt-0.5" />
+                                      <span className="text-[9px] font-bold text-slate-500 leading-tight line-clamp-2">{p.address}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-[9px] font-bold text-slate-600 italic tracking-widest">No Alamat</span>
+                                  )}
+                               </div>
+                             </td>
+                             <td className="px-8 py-4">
+                               <div className="flex flex-col">
+                                  <span className="text-[10px] font-black text-white/90 tracking-widest leading-none">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
+                                  <span className="text-[7px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">Deployment</span>
+                               </div>
+                             </td>
+                             <td className="px-8 py-4 text-right relative">
+                               <div className="flex justify-end items-center gap-2 manage-menu-container overflow-visible">
+                                  <button 
+                                    onClick={() => setActiveMenu(activeMenu === p.id ? null : p.id)}
+                                    className={cn(
+                                      "px-4 py-2 text-[10px] font-bold tracking-tight transition-all duration-300 rounded-lg flex items-center gap-2.5 border transition-all",
+                                      activeMenu === p.id 
+                                        ? "bg-[#C50337] text-white border-transparent" 
+                                        : "bg-slate-950/30 hover:bg-[#C50337]/10 text-slate-400 hover:text-white border-white/5 hover:border-[#C50337]/20"
+                                    )}
+                                  >
+                                    Manage <MoreVertical className="w-3 h-3 opacity-50" />
+                                  </button>
+                                  
+                                  {activeMenu === p.id && (
+                                    <div className={cn(
+                                      "absolute right-8 w-52 bg-[#0B121F]/98 backdrop-blur-3xl border border-white/10 shadow-[0_15px_40px_rgba(0,0,0,0.6)] z-[400] rounded-xl overflow-hidden animate-in fade-in duration-300",
+                                      data.indexOf(p) === data.length - 1 ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2"
+                                    )}>
+                                       <div className="p-1.5">
+                                         <button 
+                                           onClick={() => { 
+                                             setEditingUser(p);
+                                             setNewUserEmail(p.email);
+                                             setNewUserName(p.full_name || "");
+                                             setNewUserPhone(p.phone || "");
+                                             setNewUserAddress(p.address || "");
+                                             setShowAddUser(true);
+                                             setActiveMenu(null); 
+                                           }}
+                                           className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[10px] font-bold text-slate-300 hover:bg-[#C50337]/10 hover:text-white transition-all rounded-lg group tracking-tight"
+                                         >
+                                           <Activity className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" /> Edit Identity
+                                         </button>
+                                         <button 
+                                           onClick={() => { handleToggleLock(p); setActiveMenu(null); }}
+                                           className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[10px] font-bold text-slate-300 hover:bg-amber-500/10 hover:text-white transition-all rounded-lg group tracking-tight"
+                                         >
+                                           {p.is_locked ? <Unlock className="w-3.5 h-3.5 text-emerald-500" /> : <Lock className="w-3.5 h-3.5 text-amber-500" />}
+                                           {p.is_locked ? "Unlock Registry" : "Lock Identity"}
+                                         </button>
+                                         <div className="my-1 border-t border-white/5 mx-2" />
+                                         <button 
+                                           onClick={() => { handleDeleteUser(p); setActiveMenu(null); }}
+                                           className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[10px] font-bold text-rose-500/60 hover:bg-rose-500/10 hover:text-rose-500 transition-all rounded-lg group tracking-tight"
+                                         >
+                                           <Trash2 className="w-3.5 h-3.5" /> DELETE IDENTITY
+                                         </button>
+                                       </div>
+                                    </div>
+                                  )}
+                               </div>
+                             </td>
+                         </tr>
+                      ))}
+                    </tbody>
+                </table>
+             </div>
         </div>
       )}
       </div>
