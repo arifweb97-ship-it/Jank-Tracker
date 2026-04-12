@@ -152,15 +152,15 @@ export default function LoginPage() {
 
 
   return (
-    <div className="min-h-screen bg-[#02060E] flex flex-col items-center justify-center p-6 selection:bg-[#C50337]/30 font-inter relative overflow-hidden">
+    <div className="min-h-screen bg-[#02060E] flex flex-col items-center justify-center p-3 sm:p-6 selection:bg-[#C50337]/30 font-inter relative overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#C50337]/20 to-transparent" />
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#C50337]/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/5 blur-[120px] pointer-events-none" />
 
-      <div className="w-full max-w-[420px] bg-slate-900/30 backdrop-blur-3xl border border-white/[0.03] p-12 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-1000 rounded-3xl">
+      <div className="w-full max-w-[420px] bg-slate-900/30 backdrop-blur-3xl border border-white/[0.03] px-5 py-8 sm:p-12 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-1000 rounded-2xl sm:rounded-3xl">
         
-        <header className="mb-12 text-center space-y-3">
+        <header className="mb-8 sm:mb-12 text-center space-y-3">
             <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase leading-none flex items-baseline justify-center gap-2">
               JANK <span className="text-xl font-bold text-[#C50337] tracking-[0.2em]">TRACKER</span>
             </h1>
@@ -212,7 +212,7 @@ export default function LoginPage() {
 
                    <div className="space-y-4">
                       <label className="text-[11px] font-bold text-slate-500 tracking-wide px-1 block text-center">Verification Code</label>
-                      <div className="flex justify-between gap-3 px-2">
+                       <div className="flex justify-center gap-2 sm:gap-3 px-0">
                         {otp.map((digit, index) => (
                            <input
                               key={index}
@@ -225,10 +225,10 @@ export default function LoginPage() {
                               onChange={e => handleOtpChange(index, e.target.value)}
                               onKeyDown={e => handleOtpKeyDown(index, e)}
                               onPaste={index === 0 ? handlePaste : undefined}
-                              className={cn(
-                                 "w-[68px] h-20 bg-slate-950/50 border border-white/5 text-center text-3xl font-black text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/10 outline-none transition-all rounded-2xl shadow-inner",
-                                 digit && "border-white/10"
-                              )}
+                               className={cn(
+                                  "w-14 h-16 sm:w-[68px] sm:h-20 bg-slate-950/50 border border-white/5 text-center text-2xl sm:text-3xl font-black text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/10 outline-none transition-all rounded-xl sm:rounded-2xl shadow-inner",
+                                  digit && "border-white/10"
+                               )}
                            />
                         ))}
                       </div>

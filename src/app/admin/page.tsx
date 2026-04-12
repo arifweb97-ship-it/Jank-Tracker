@@ -2,16 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { useRouter, useSearchParams } from "next/navigation";
+
 import { 
   Users, 
   Database,
   Loader2,
   AlertTriangle,
-  ShieldCheck,
-  Zap,
-  Globe,
-  Settings as SettingsIcon,
   X,
   Plus,
   Activity,
@@ -21,10 +17,14 @@ import {
   MoreVertical,
   Phone,
   MapPin,
-  User as UserIcon
+  User as UserIcon,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  BarChart3
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { TopBar } from "@/components/top-bar";
+
 import { SystemNotice, type NoticeType } from "@/components/system-notice";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -36,11 +36,11 @@ function cn(...inputs: ClassValue[]) {
 
 export default function AdminConsole() {
   const { role } = useAuth();
-  const router = useRouter();
   
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [userProfits, setUserProfits] = useState<Record<string, { dailyProfit: number; totalProfit: number; latestDate: string | null }>>({});
 
   // Notification System State
   const [notice, setNotice] = useState<{
@@ -77,6 +77,9 @@ export default function AdminConsole() {
 
   const closeNotice = () => setNotice(prev => ({ ...prev, isOpen: false }));
 
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
   const fetchData = async () => {
     setLoading(true);
     setDbError(null);
@@ -88,6 +91,68 @@ export default function AdminConsole() {
       
       if (pError) throw pError;
       if (rError) throw rError;
+
+      // 📊 Fetch profit data PER USER (same approach as dashboard-hero)
+      // Collect all unique user IDs from both tables
+      const allUserIds: { id: string; email: string }[] = [];
+      (profiles || []).forEach((p: any) => { if (p.id && p.email) allUserIds.push({ id: p.id, email: p.email.toLowerCase() }); });
+      (requests || []).forEach((r: any) => { if (r.id && r.email) allUserIds.push({ id: r.id, email: r.email.toLowerCase() }); });
+
+      // Build email -> display ID mapping (for admin table)
+      const emailToDisplayId: Record<string, string> = {};
+      (profiles || []).forEach((p: any) => { if (p.email) emailToDisplayId[p.email.toLowerCase()] = p.id; });
+      (requests || []).forEach((r: any) => { 
+        const email = r.email?.toLowerCase();
+        if (email && !emailToDisplayId[email]) emailToDisplayId[email] = r.id; 
+      });
+
+      const profitMap: Record<string, { dailyProfit: number; totalProfit: number; latestDate: string | null }> = {};
+
+      // Fetch daily_records per user (bypasses 1000 row default limit)
+      const profitPromises = allUserIds.map(async ({ id: userId, email }) => {
+        const { data: userRecords } = await supabase
+          .from("daily_records")
+          .select("*")
+          .eq("user_id", userId)
+          .order("date", { ascending: true });
+
+        if (!userRecords || userRecords.length === 0) return;
+
+        // Group by date
+        const dateMap: Record<string, { spend: number; commission: number }> = {};
+        userRecords.forEach((rec: any) => {
+          if (!dateMap[rec.date]) dateMap[rec.date] = { spend: 0, commission: 0 };
+          if (rec.category === 'meta') {
+            dateMap[rec.date].spend += Number(rec.spend) || 0;
+          } else if (rec.category === 'shopee_comm') {
+            dateMap[rec.date].commission += Number(rec.commission) || 0;
+          }
+        });
+
+        let totalSpend = 0;
+        let totalCommission = 0;
+        let latestDate: string | null = null;
+
+        Object.entries(dateMap).forEach(([date, vals]) => {
+          totalSpend += vals.spend;
+          totalCommission += vals.commission;
+          if (!latestDate || date > latestDate) latestDate = date;
+        });
+
+        const latestDayData = latestDate ? dateMap[latestDate] : { spend: 0, commission: 0 };
+        const displayId = emailToDisplayId[email];
+        if (displayId) {
+          profitMap[displayId] = {
+            dailyProfit: latestDayData.commission - latestDayData.spend,
+            totalProfit: totalCommission - totalSpend,
+            latestDate
+          };
+        }
+      });
+
+      await Promise.all(profitPromises);
+      setUserProfits(profitMap);
+
 
       const profileEmails = new Set(profiles?.map(p => p.email.toLowerCase()) || []);
       const pending = (requests || [])
@@ -415,6 +480,52 @@ export default function AdminConsole() {
                        <span className="text-[10px] font-medium text-slate-400 leading-relaxed italic line-clamp-2">{p.address || 'Address not registered'}</span>
                     </div>
                  </div>
+
+                 {/* MOBILE: Profit Analytics Section */}
+                 <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-4 rounded-xl border relative overflow-hidden ${
+                      (userProfits[p.id]?.dailyProfit ?? 0) >= 0 
+                        ? 'bg-emerald-500/5 border-emerald-500/20' 
+                        : 'bg-rose-500/5 border-rose-500/20'
+                    }`}>
+                       <div className={`absolute top-0 right-0 w-12 h-12 blur-2xl -mr-4 -mt-4 ${(userProfits[p.id]?.dailyProfit ?? 0) >= 0 ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`} />
+                       <div className="relative z-10">
+                          <div className="flex items-center gap-1.5 mb-2">
+                             <BarChart3 className={`w-3 h-3 ${(userProfits[p.id]?.dailyProfit ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} />
+                             <span className="text-[8px] font-black text-slate-500 tracking-widest uppercase">Profit Harian</span>
+                          </div>
+                          <span className={`text-sm font-black tracking-tight ${
+                            (userProfits[p.id]?.dailyProfit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                          }`}>
+                            {formatCurrency(userProfits[p.id]?.dailyProfit ?? 0)}
+                          </span>
+                          {userProfits[p.id]?.latestDate && (
+                            <span className="block text-[7px] font-bold text-slate-600 mt-1 tracking-wide">
+                              {new Date(userProfits[p.id].latestDate!).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                            </span>
+                          )}
+                       </div>
+                    </div>
+                    <div className={`p-4 rounded-xl border relative overflow-hidden ${
+                      (userProfits[p.id]?.totalProfit ?? 0) >= 0 
+                        ? 'bg-emerald-500/5 border-emerald-500/20' 
+                        : 'bg-rose-500/5 border-rose-500/20'
+                    }`}>
+                       <div className={`absolute top-0 right-0 w-12 h-12 blur-2xl -mr-4 -mt-4 ${(userProfits[p.id]?.totalProfit ?? 0) >= 0 ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`} />
+                       <div className="relative z-10">
+                          <div className="flex items-center gap-1.5 mb-2">
+                             <DollarSign className={`w-3 h-3 ${(userProfits[p.id]?.totalProfit ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} />
+                             <span className="text-[8px] font-black text-slate-500 tracking-widest uppercase">Total Profit</span>
+                          </div>
+                          <span className={`text-sm font-black tracking-tight ${
+                            (userProfits[p.id]?.totalProfit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                          }`}>
+                            {formatCurrency(userProfits[p.id]?.totalProfit ?? 0)}
+                          </span>
+                          <span className="block text-[7px] font-bold text-slate-600 mt-1 tracking-wide">Keseluruhan</span>
+                       </div>
+                    </div>
+                 </div>
               </div>
             ))}
           </div>
@@ -424,17 +535,19 @@ export default function AdminConsole() {
                 <table className="w-full text-left border-collapse">
                    <thead className="bg-[#02060E] border-b border-white/5">
                       <tr>
-                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Identity Node</th>
-                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Assignment</th>
-                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Contact Node</th>
-                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Deployment</th>
-                         <th className="px-8 py-6 text-[11px] font-bold text-slate-500 tracking-wider text-right">Actions</th>
+                         <th className="px-5 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Identity Node</th>
+                         <th className="px-4 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Assignment</th>
+                         <th className="px-4 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Contact Node</th>
+                         <th className="px-4 py-6 text-[11px] font-bold text-slate-500 tracking-wider text-right">Profit Harian</th>
+                         <th className="px-4 py-6 text-[11px] font-bold text-slate-500 tracking-wider text-right">Total Profit</th>
+                         <th className="px-4 py-6 text-[11px] font-bold text-slate-500 tracking-wider">Deployment</th>
+                         <th className="px-5 py-6 text-[11px] font-bold text-slate-500 tracking-wider text-right">Actions</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-white/5">
                       {data.map((p) => (
                          <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
-                             <td className="px-8 py-4">
+                             <td className="px-5 py-4">
                                <div className="flex items-center gap-4">
                                    <div className="w-10 h-10 bg-slate-950 border border-white/10 flex items-center justify-center rounded-lg shadow-inner group-hover:border-[#C50337]/50 transition-all duration-500">
                                       {p.full_name ? <UserIcon className="w-5 h-5 text-[#C50337]" /> : <Users className="w-5 h-5 text-slate-700 group-hover:text-white transition-colors" />}
@@ -448,7 +561,7 @@ export default function AdminConsole() {
                                    </div>
                                </div>
                              </td>
-                             <td className="px-8 py-4">
+                             <td className="px-4 py-4">
                                <div className="flex items-center gap-2">
                                   <span className={cn(
                                      "px-3 py-1 text-[9px] font-bold tracking-wider rounded-full border transition-all duration-500 capitalize",
@@ -465,8 +578,8 @@ export default function AdminConsole() {
                                   )}
                                </div>
                              </td>
-                             <td className="px-8 py-4">
-                               <div className="flex flex-col gap-1.5 max-w-[200px]">
+                             <td className="px-4 py-4">
+                               <div className="flex flex-col gap-1.5 max-w-[180px]">
                                   {p.phone ? (
                                     <div className="flex items-center gap-2">
                                       <Phone className="w-3 h-3 text-[#C50337]" />
@@ -485,18 +598,56 @@ export default function AdminConsole() {
                                   )}
                                </div>
                              </td>
-                             <td className="px-8 py-4">
+                             {/* Profit Harian Column */}
+                             <td className="px-4 py-4 text-right">
+                               <div className="flex flex-col items-end gap-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    {(userProfits[p.id]?.dailyProfit ?? 0) >= 0 
+                                      ? <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                      : <TrendingDown className="w-3 h-3 text-rose-500" />
+                                    }
+                                    <span className={`text-[11px] font-black tracking-tight ${
+                                      (userProfits[p.id]?.dailyProfit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                                    }`}>
+                                      {formatCurrency(userProfits[p.id]?.dailyProfit ?? 0)}
+                                    </span>
+                                  </div>
+                                  {userProfits[p.id]?.latestDate && (
+                                    <span className="text-[7px] font-bold text-slate-600 tracking-wider">
+                                      {new Date(userProfits[p.id].latestDate!).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
+                                  )}
+                               </div>
+                             </td>
+                             {/* Total Profit Column */}
+                             <td className="px-4 py-4 text-right">
+                               <div className="flex flex-col items-end gap-0.5">
+                                  <span className={`text-[12px] font-black tracking-tight ${
+                                    (userProfits[p.id]?.totalProfit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                                  }`}>
+                                    {formatCurrency(userProfits[p.id]?.totalProfit ?? 0)}
+                                  </span>
+                                  <span className={`text-[7px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded-sm border ${
+                                    (userProfits[p.id]?.totalProfit ?? 0) >= 0 
+                                      ? 'bg-emerald-500/10 text-emerald-500/60 border-emerald-500/10' 
+                                      : 'bg-rose-500/10 text-rose-500/60 border-rose-500/10'
+                                  }`}>
+                                    {(userProfits[p.id]?.totalProfit ?? 0) >= 0 ? 'Profit' : 'Rugi'}
+                                  </span>
+                               </div>
+                             </td>
+                             <td className="px-4 py-4">
                                <div className="flex flex-col">
                                   <span className="text-[10px] font-black text-white/90 tracking-widest leading-none">{new Date(p.created_at).toLocaleDateString('en-GB')}</span>
                                   <span className="text-[7px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">Deployment</span>
                                </div>
                              </td>
-                             <td className="px-8 py-4 text-right relative">
+                             <td className="px-5 py-4 text-right relative">
                                <div className="flex justify-end items-center gap-2 manage-menu-container overflow-visible">
                                   <button 
                                     onClick={() => setActiveMenu(activeMenu === p.id ? null : p.id)}
                                     className={cn(
-                                      "px-4 py-2 text-[10px] font-bold tracking-tight transition-all duration-300 rounded-lg flex items-center gap-2.5 border transition-all",
+                                      "px-4 py-2 text-[10px] font-bold tracking-tight transition-all duration-300 rounded-lg flex items-center gap-2.5 border",
                                       activeMenu === p.id 
                                         ? "bg-[#C50337] text-white border-transparent" 
                                         : "bg-slate-950/30 hover:bg-[#C50337]/10 text-slate-400 hover:text-white border-white/5 hover:border-[#C50337]/20"
