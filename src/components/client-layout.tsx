@@ -40,7 +40,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </>
       )}
       
-      <main className={`flex-1 min-h-screen transition-all duration-500 relative overflow-x-hidden 
+      <main className={`flex-1 min-h-screen transition-all duration-500 relative 
         ${showSidebar ? 'lg:ml-60 pt-[60px] lg:pt-0' : 'ml-0'}`}
       >
         {children}

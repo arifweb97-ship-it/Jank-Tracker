@@ -276,7 +276,7 @@ export default function AdminConsole() {
 
   return (
     <ProtectedRoute adminOnly>
-      <div className="p-4 sm:p-8 md:p-12 relative animate-in fade-in duration-1000 overflow-x-hidden">
+      <div className="p-4 sm:p-8 md:p-12 relative animate-in fade-in duration-1000 overflow-visible">
       {/* EXECUTIVE SYSTEM NOTICE MODAL */}
       <SystemNotice 
          isOpen={notice.isOpen}
@@ -385,8 +385,8 @@ export default function AdminConsole() {
           
           {/* MOBILE VIEW CARD REGISTRY */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {data.map((p) => (
-              <div key={p.id} className="bg-slate-900/40 border border-white/5 p-6 rounded-xl flex flex-col gap-6 relative overflow-hidden group">
+            {data.map((p, index) => (
+              <div key={p.id} className="bg-slate-900/40 border border-white/5 p-6 rounded-xl flex flex-col gap-6 relative overflow-visible group">
                  <div className="absolute top-0 right-0 p-4">
                     <button 
                       onClick={() => setActiveMenu(activeMenu === p.id ? null : p.id)}
@@ -401,7 +401,10 @@ export default function AdminConsole() {
                     </button>
                     
                     {activeMenu === p.id && (
-                      <div className="absolute right-4 top-14 w-52 bg-[#0B121F] border border-white/10 shadow-2xl z-50 rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <div className={cn(
+                        "absolute right-4 w-52 bg-[#0B121F] border border-white/10 shadow-2xl z-50 rounded-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200",
+                        index > 0 && index === data.length - 1 ? "bottom-20 mb-2" : "top-14 mt-2"
+                      )}>
                         <div className="p-1.5 grayscale-[0.5] hover:grayscale-0 transition-all">
                            <button 
                              onClick={() => { 
@@ -531,7 +534,7 @@ export default function AdminConsole() {
           </div>
 
           {/* DESKTOP VIEW TABLE REGISTRY */}
-          <div className="hidden md:block bg-slate-900/50 border border-white/5 shadow-2xl rounded-xl relative z-30 overflow-hidden">
+          <div className="hidden md:block bg-slate-900/50 border border-white/5 shadow-2xl rounded-xl relative z-30 overflow-visible">
                 <table className="w-full text-left border-collapse">
                    <thead className="bg-[#02060E] border-b border-white/5">
                       <tr>
@@ -545,7 +548,7 @@ export default function AdminConsole() {
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-white/5">
-                      {data.map((p) => (
+                      {data.map((p, index) => (
                          <tr key={p.id} className="group hover:bg-white/[0.02] transition-colors">
                              <td className="px-5 py-4">
                                <div className="flex items-center gap-4">
@@ -659,7 +662,7 @@ export default function AdminConsole() {
                                   {activeMenu === p.id && (
                                     <div className={cn(
                                       "absolute right-8 w-52 bg-[#0B121F]/98 backdrop-blur-3xl border border-white/10 shadow-[0_15px_40px_rgba(0,0,0,0.6)] z-[400] rounded-xl overflow-hidden animate-in fade-in duration-300",
-                                      data.indexOf(p) === data.length - 1 ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2"
+                                      (index > 0 && index === data.length - 1) ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2"
                                     )}>
                                        <div className="p-1.5">
                                          <button 

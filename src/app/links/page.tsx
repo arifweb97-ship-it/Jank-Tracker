@@ -200,7 +200,7 @@ export default function LinkMatrix() {
 
   return (
     <ProtectedRoute>
-      <div className="flex flex-col min-h-screen relative overflow-x-hidden">
+      <div className="flex flex-col min-h-screen relative overflow-visible">
         {/* EXECUTIVE SYSTEM NOTICE MODAL */}
         <SystemNotice 
            isOpen={notice.isOpen}
@@ -318,7 +318,7 @@ export default function LinkMatrix() {
             </div>
           )}
 
-          <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-xl shadow-2xl animate-in fade-in relative z-30">
+          <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-xl shadow-2xl animate-in fade-in relative z-30 overflow-visible">
              <div className="px-6 py-5 border-b border-white/5 bg-slate-950/20 flex items-center justify-between">
                 <div className="relative max-w-xs flex-1">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700" />
@@ -340,7 +340,7 @@ export default function LinkMatrix() {
 
               <div className="relative">
                  {/* DESKTOP TABLE */}
-                 <div className="hidden md:block overflow-x-auto">
+                 <div className="hidden md:block overflow-visible">
                     <table className="w-full text-left border-collapse table-fixed">
                        <thead className="bg-[#02060E]/95 border-b border-white/10 sticky top-0 z-30">
                           <tr className="uppercase tracking-widest text-[8px] font-black text-slate-500">
@@ -357,7 +357,7 @@ export default function LinkMatrix() {
                           ) : paginatedLinks.length === 0 ? (
                             <tr><td colSpan={5} className="py-32 text-center opacity-10"><Link2 className="w-16 h-16 mx-auto mb-6 text-slate-800" /><p className="text-[10px] font-black uppercase tracking-widest">Registry Empty</p></td></tr>
                           ) : (
-                            paginatedLinks.map((link: any) => (
+                            paginatedLinks.map((link: any, index: number) => (
                                <tr key={link.id} className="hover:bg-white/[0.02] transition-colors group">
                                   <td className="px-8 py-3.5 truncate">
                                      <div className="flex flex-col gap-1">
@@ -442,7 +442,10 @@ export default function LinkMatrix() {
                                       </button>
 
                                      {activeMenuId === link.id && (
-                                       <div className="absolute right-8 top-full mt-2 w-44 bg-[#0B121F] border border-white/10 shadow-4xl z-[400] rounded-xl p-2 animate-in fade-in slide-in-from-top-1 duration-200 backdrop-blur-xl">
+                                       <div className={cn(
+                                         "absolute right-8 w-44 bg-[#0B121F] border border-white/10 shadow-4xl z-[400] rounded-xl p-2 animate-in fade-in duration-200 backdrop-blur-xl",
+                                         (index >= paginatedLinks.length - 2 && paginatedLinks.length >= 2) ? "bottom-full mb-2 slide-in-from-bottom-1" : "top-full mt-2 slide-in-from-top-1"
+                                       )}>
                                           <div className="px-3 py-2 border-b border-white/5 mb-1 opacity-40">
                                              <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Matrix Options</p>
                                           </div>
@@ -476,7 +479,7 @@ export default function LinkMatrix() {
                     ) : paginatedLinks.length === 0 ? (
                        <div className="py-20 text-center opacity-10"><p className="text-[10px] font-black uppercase tracking-widest">Registry Empty</p></div>
                     ) : (
-                       paginatedLinks.map((link: any) => (
+                       paginatedLinks.map((link: any, index: number) => (
                           <div key={link.id} className="p-4 space-y-4 hover:bg-white/[0.02] transition-colors relative">
                              <div className="flex items-start justify-between">
                                 <div className="flex flex-col gap-1 pr-10">
@@ -502,7 +505,10 @@ export default function LinkMatrix() {
                                    </button>
                                    
                                    {activeMenuId === link.id && (
-                                      <div className="absolute right-0 top-full mt-1 w-44 bg-[#0B121F] border border-white/10 shadow-4xl z-[400] rounded-xl p-2 backdrop-blur-xl">
+                                      <div className={cn(
+                                        "absolute right-0 w-44 bg-[#0B121F] border border-white/10 shadow-4xl z-[400] rounded-xl p-2 backdrop-blur-xl animate-in fade-in duration-200",
+                                        (index >= paginatedLinks.length - 2 && paginatedLinks.length >= 2) ? "bottom-full mb-2 slide-in-from-bottom-1" : "top-full mt-1 slide-in-from-top-1"
+                                      )}>
                                          <button onClick={() => setStatus(link.id, 'active')} className="w-full flex items-center justify-between px-3 py-2.5 text-[8px] font-black text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/5 rounded-lg transition-all uppercase tracking-widest">
                                             Protocol Active <Play className="w-2.5 h-2.5 opacity-40"/>
                                          </button>
