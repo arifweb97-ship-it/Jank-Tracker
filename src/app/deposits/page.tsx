@@ -136,10 +136,10 @@ export default function DepositsPage() {
           }
         />
 
-        <div className="p-8 space-y-8 max-w-7xl mx-auto w-full flex-1">
+        <div className="p-4 sm:p-6 md:p-8 space-y-6 md:space-y-8 max-w-7xl mx-auto w-full flex-1">
           {/* TOTAL FUNDS SUMMARY */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 p-6 border border-white/5 bg-slate-900/40 backdrop-blur-md rounded-xl shadow-2xl relative overflow-hidden group">
+            <div className="lg:col-span-1 p-5 md:p-6 border border-white/5 bg-slate-900/40 backdrop-blur-md rounded-xl shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-8 -mt-8" />
               <div className="relative z-10 space-y-5">
                 <div className="flex items-center justify-between">
@@ -157,7 +157,7 @@ export default function DepositsPage() {
               </div>
             </div>
 
-            <div className="lg:col-span-2 p-6 border border-white/5 bg-[#C50337]/5 backdrop-blur-md rounded-xl relative overflow-hidden flex flex-col justify-center">
+            <div className="lg:col-span-2 p-5 md:p-6 border border-white/5 bg-[#C50337]/5 backdrop-blur-md rounded-xl relative overflow-hidden flex flex-col justify-center">
               <div className="flex items-start gap-4">
                   <div className="p-3 bg-[#C50337]/10 border border-[#C50337]/20 rounded-xl flex-shrink-0">
                     <AlertCircle className="w-5 h-5 text-[#C50337]" />
@@ -183,10 +183,10 @@ export default function DepositsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
-                  <tr className="bg-white/[0.02] text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                    <th className="px-6 py-4 w-[40%]">Date</th>
-                    <th className="px-6 py-4 w-[40%]">Amount</th>
-                    <th className="px-6 py-4 w-[20%] text-right">Actions</th>
+                  <tr className="bg-white/[0.02] text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                    <th className="px-4 md:px-6 py-4">Date</th>
+                    <th className="px-4 md:px-6 py-4 text-left">Amount</th>
+                    <th className="px-4 md:px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -199,16 +199,16 @@ export default function DepositsPage() {
                   ) : (
                     deposits.map((d) => (
                       <tr key={d.id} className="hover:bg-white/[0.01] transition-colors group">
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-bold text-slate-300">{format(new Date(d.date), "dd MMM yyyy")}</span>
+                        <td className="px-4 md:px-6 py-4">
+                          <span className="text-[10px] md:text-xs font-bold text-slate-300">{format(new Date(d.date), "dd MMM yyyy")}</span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <ArrowUpRight className="w-3 h-3 text-emerald-500" />
-                            <span className="text-sm font-black text-white">{formatCurrency(d.amount)}</span>
+                        <td className="px-4 md:px-6 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <ArrowUpRight className="hidden sm:block w-3 h-3 text-emerald-500" />
+                            <span className="text-xs md:text-sm font-black text-white">{formatCurrency(d.amount)}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-4 md:px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button 
                               onClick={() => {

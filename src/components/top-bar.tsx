@@ -23,8 +23,8 @@ export function TopBar({ title, description, action }: TopBarProps) {
           <div className="hidden md:block absolute -left-6 top-0 bottom-0 w-1 bg-gradient-to-b from-[#C50337] to-transparent shadow-[0_0_15px_rgba(197,3,55,0.4)]" />
           
           <div className="flex flex-col gap-0.5">
-            <h2 className="text-base md:text-lg font-black tracking-tighter text-white capitalize leading-none truncate max-w-[150px] sm:max-w-none">{title}</h2>
-            <p className="text-slate-500 font-bold text-[9px] md:text-[10px] tracking-tight truncate max-w-[180px] sm:max-w-none">{description}</p>
+            <h2 className="text-sm sm:text-base md:text-lg font-black tracking-tighter text-white capitalize leading-none truncate max-w-[180px] sm:max-w-none">{title}</h2>
+            <p className="text-slate-500 font-bold text-[8px] sm:text-[9px] md:text-[10px] tracking-tight truncate max-w-[180px] sm:max-w-none">{description}</p>
           </div>
         </div>
 
