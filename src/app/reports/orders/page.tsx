@@ -222,12 +222,12 @@ export default function OrderReportPage() {
                        <table className="w-full text-left">
                           <thead className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md">
                              <tr className="border-b border-white/5">
-                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest pl-6">Tanggal</th>
-                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Dipesan</th>
-                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Tertunda (Pending)</th>
-                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Selesai</th>
-                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-6">Dibatalkan</th>
-                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-6 min-w-[120px]">Net Profit Cair</th>
+                                <th className="p-3 text-[9px] font-black text-slate-600 uppercase tracking-widest pl-4 whitespace-nowrap">Tanggal</th>
+                                <th className="p-3 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center whitespace-nowrap">Dipesan</th>
+                                <th className="p-3 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center whitespace-nowrap">Tertunda</th>
+                                <th className="p-3 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center whitespace-nowrap">Selesai</th>
+                                <th className="p-3 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center whitespace-nowrap">Dibatalkan</th>
+                                <th className="p-3 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-4 whitespace-nowrap">Net Profit Cair</th>
                              </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5 text-[11px]">
@@ -239,37 +239,37 @@ export default function OrderReportPage() {
                                 </tr>
                              ) : paginatedData.map((row) => (
                                 <tr key={row.date} className="hover:bg-white/[0.03] transition-all duration-300 group cursor-default">
-                                   <td className="p-4 pl-6">
-                                      <div className="flex items-center gap-3">
+                                   <td className="p-3 pl-4">
+                                      <div className="flex items-center gap-2">
                                          <div className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-[#C50337] transition-all" />
                                          <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform whitespace-nowrap">{row.date}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4">
-                                      <div className="flex items-center justify-center gap-3">
-                                         <span className="text-white font-bold bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.created.toLocaleString()}</span>
-                                         <span className="text-[11px] text-blue-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.createdComm)}</span>
+                                   <td className="p-3">
+                                      <div className="flex items-center justify-center gap-2">
+                                         <span className="text-white font-bold bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap min-w-[2.5rem] text-center">{row.created.toLocaleString()}</span>
+                                         <span className="text-[11px] text-blue-400 font-black tracking-wider w-20 text-left whitespace-nowrap">{formatCurrency(row.createdComm)}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4">
-                                      <div className="flex items-center justify-center gap-3">
-                                         <span className="text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20 whitespace-nowrap min-w-[3rem] text-center">{(row.created - row.completed - row.cancelled).toLocaleString()}</span>
-                                         <span className="text-[11px] text-amber-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.createdComm - row.completedComm - row.cancelledComm)}</span>
+                                   <td className="p-3">
+                                      <div className="flex items-center justify-center gap-2">
+                                         <span className="text-amber-400 font-bold bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20 whitespace-nowrap min-w-[2.5rem] text-center">{(row.created - row.completed - row.cancelled).toLocaleString()}</span>
+                                         <span className="text-[11px] text-amber-400 font-black tracking-wider w-20 text-left whitespace-nowrap">{formatCurrency(row.createdComm - row.completedComm - row.cancelledComm)}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4">
-                                      <div className="flex items-center justify-center gap-3">
-                                         <span className="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.completed.toLocaleString()}</span>
-                                         <span className="text-[11px] text-emerald-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.completedComm)}</span>
+                                   <td className="p-3">
+                                      <div className="flex items-center justify-center gap-2">
+                                         <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap min-w-[2.5rem] text-center">{row.completed.toLocaleString()}</span>
+                                         <span className="text-[11px] text-emerald-400 font-black tracking-wider w-20 text-left whitespace-nowrap">{formatCurrency(row.completedComm)}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4 pr-6">
-                                      <div className="flex items-center justify-end gap-3">
-                                         <span className="text-[11px] text-rose-400 font-black tracking-wider w-24 text-right">{formatCurrency(row.cancelledComm)}</span>
-                                         <span className="text-rose-400 font-bold bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.cancelled.toLocaleString()}</span>
+                                   <td className="p-3">
+                                      <div className="flex items-center justify-center gap-2">
+                                         <span className="text-rose-400 font-bold bg-rose-500/10 px-2 py-1 rounded-lg border border-rose-500/20 whitespace-nowrap min-w-[2.5rem] text-center">{row.cancelled.toLocaleString()}</span>
+                                         <span className="text-[11px] text-rose-400 font-black tracking-wider w-20 text-left whitespace-nowrap">{formatCurrency(row.cancelledComm)}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4 pr-6">
+                                   <td className="p-3 pr-4">
                                       <div className="flex flex-col items-end gap-1">
                                          {(() => {
                                            const netProfit = row.completedComm - row.metaSpend;
