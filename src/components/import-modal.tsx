@@ -148,6 +148,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
     const MASTER_META: Record<string, { s: number, c: number, d: string, camp: string }> = {};
     const MASTER_COMM: Record<string, { amount: number, orders: number, d: string, tag: string, source: string }[]> = {};
     const MASTER_CLICKS: Record<string, { source: string, tag: string, count: number }[]> = {};
+    const MASTER_ORDERS: Record<string, { created: number, completed: number, cancelled: number, d: string }> = {};
 
     const DATE_ALIASES = ["Order Time", "Waktu Pesanan", "Click Time", "Waktu Klik", "Tanggal Klik", "Date", "Tanggal", "Reporting Start", "Reporting start", "Day", "Waktu", "Day of Week", "Reporting period"];
     const CLICK_ALIASES = ["Click id", "Clicks", "Klik", "Jumlah Klik", "Total Clicks", "Total Klik", "Measured Clicks", "Results", "Link clicks", "Click", "Klik Link", "Outbound clicks", "Inbound clicks", "Unique Clicks"];
@@ -157,6 +158,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
     const PLATFORM_ALIASES = ["Referrer", "Channel", "Saluran", "Placement", "Site Source Name", "Site", "Sumber", "Platform", "Device"];
     const SPENT_ALIASES = ["Amount spent", "Spent", "Pengeluaran", "Biaya", "Cost", "Total Spent", "Meta Spent"];
     const CAMP_ALIASES = ["Campaign Name", "Campaign", "Kampanye", "Ad Name", "Campaign name", "Kampanye Meta"];
+    const STATUS_ALIASES = ["Order Status", "Status Pesanan", "Status"];
 
     const shopeeCommFingerprints = new Set<string>();
     const shopeeClickFingerprints = new Set<string>();
@@ -219,6 +221,18 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                         } else { 
                           MASTER_COMM[d].push({ amount: comm, orders: 1, d, tag, source: technical }); 
                         }
+
+                        const rawStatus = getAliasValue(row, STATUS_ALIASES);
+                        let mappedStatus = 'unpaid';
+                        if (rawStatus) {
+                          const s = String(rawStatus).toLowerCase();
+                          if (s.includes('completed') || s.includes('selesai')) mappedStatus = 'completed';
+                          else if (s.includes('cancelled') || s.includes('batal')) mappedStatus = 'cancelled';
+                        }
+                        MASTER_ORDERS[d] = MASTER_ORDERS[d] || { d, created: 0, completed: 0, cancelled: 0 };
+                        MASTER_ORDERS[d].created += 1;
+                        if (mappedStatus === 'completed') MASTER_ORDERS[d].completed += 1;
+                        if (mappedStatus === 'cancelled') MASTER_ORDERS[d].cancelled += 1;
                       }
                     });
                   }
@@ -271,10 +285,11 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
       const allDates = Array.from(new Set([
         ...Object.keys(MASTER_COMM), 
         ...Object.keys(MASTER_CLICKS), 
+        ...Object.keys(MASTER_ORDERS),
         ...Object.values(MASTER_META).map(v => v.d)
       ]));
       
-      const totalParsed = Object.keys(MASTER_META).length + Object.keys(MASTER_COMM).length + Object.keys(MASTER_CLICKS).length;
+      const totalParsed = Object.keys(MASTER_META).length + Object.keys(MASTER_COMM).length + Object.keys(MASTER_CLICKS).length + Object.keys(MASTER_ORDERS).length;
       if (totalParsed === 0) {
         throw new Error("No data matched. Please check your CSV headers (e.g., 'Spent', 'Date', 'Commission').");
       }
@@ -328,6 +343,31 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         if (clickRows.length > 0) {
           const { error: insErr } = await supabase.from("daily_records").insert(clickRows);
           if (insErr) throw new Error(`Click Insert Error: ${insErr.message}`);
+        }
+      }
+
+      if (Object.keys(MASTER_ORDERS).length > 0) {
+        const orderRows: any[] = [];
+        Object.values(MASTER_ORDERS).forEach(val => {
+          if (val.created > 0) {
+            orderRows.push({
+               date: val.d, category: "shopee_orders", source: "Status >>> Dipesan", orders: val.created, updated_at: new Date().toISOString(), user_id: user?.id
+            });
+            orderRows.push({
+               date: val.d, category: "shopee_orders", source: "Status >>> Selesai", orders: val.completed, updated_at: new Date().toISOString(), user_id: user?.id
+            });
+            orderRows.push({
+               date: val.d, category: "shopee_orders", source: "Status >>> Dibatalkan", orders: val.cancelled, updated_at: new Date().toISOString(), user_id: user?.id
+            });
+          }
+        });
+        
+        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_ORDERS)).eq("category", "shopee_orders").eq("user_id", user?.id);
+        if (delErr) throw new Error(`Orders Delete Error: ${delErr.message}`);
+        
+        if (orderRows.length > 0) {
+          const { error: insErr } = await supabase.from("daily_records").insert(orderRows);
+          if (insErr) throw new Error(`Orders Insert Error: ${insErr.message}`);
         }
       }
       

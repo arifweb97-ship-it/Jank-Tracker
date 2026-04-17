@@ -66,7 +66,7 @@ CREATE TABLE public.shopee_clicks (
 CREATE TABLE public.daily_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     date DATE NOT NULL,
-    category TEXT NOT NULL CHECK (category IN ('meta', 'shopee_comm', 'shopee_click')),
+    category TEXT NOT NULL CHECK (category IN ('meta', 'shopee_comm', 'shopee_click', 'shopee_orders')),
     source TEXT NOT NULL, 
     spend DECIMAL(15, 2) DEFAULT 0,
     commission DECIMAL(15, 2) DEFAULT 0,

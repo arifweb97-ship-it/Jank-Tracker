@@ -15,7 +15,8 @@ import {
   Users,
   DollarSign,
   Zap,
-  Link2
+  Link2,
+  ShoppingCart
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -37,6 +38,7 @@ export function Sidebar({ isOpen }: { isOpen?: boolean }) {
     { name: "Daily Reports", href: "/reports/daily", icon: BarChart3 },
     { name: "Placement Reports", href: "/reports/clicks", icon: MousePointer2 },
     { name: "Taglink Reports", href: "/reports/taglink", icon: Tag },
+    { name: "Order Reports", href: "/reports/orders", icon: ShoppingCart },
     { name: "Link Matrix", href: "/links", icon: Link2 },
     { name: "Ad Balance", href: "/deposits", icon: DollarSign },
   ];
