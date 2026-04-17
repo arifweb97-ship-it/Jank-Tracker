@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Loader2, ShoppingCart, ShoppingBag, XCircle, CheckCircle2, ChevronLeft, ChevronRight, PieChart, UploadCloud, DollarSign } from "lucide-react";
+import { Search, Loader2, ShoppingCart, ShoppingBag, XCircle, CheckCircle2, ChevronLeft, ChevronRight, PieChart, UploadCloud, DollarSign, Clock } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
@@ -82,10 +82,12 @@ export default function OrderReportPage() {
   const totalCreated = useMemo(() => data.reduce((acc, curr) => acc + curr.created, 0), [data]);
   const totalCompleted = useMemo(() => data.reduce((acc, curr) => acc + curr.completed, 0), [data]);
   const totalCancelled = useMemo(() => data.reduce((acc, curr) => acc + curr.cancelled, 0), [data]);
+  const totalPending = totalCreated - totalCompleted - totalCancelled;
 
   const totalCreatedComm = useMemo(() => data.reduce((acc, curr) => acc + curr.createdComm, 0), [data]);
   const totalCompletedComm = useMemo(() => data.reduce((acc, curr) => acc + curr.completedComm, 0), [data]);
   const totalCancelledComm = useMemo(() => data.reduce((acc, curr) => acc + curr.cancelledComm, 0), [data]);
+  const totalPendingComm = totalCreatedComm - totalCompletedComm - totalCancelledComm;
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
@@ -137,10 +139,11 @@ export default function OrderReportPage() {
             <div className="grid grid-cols-1 space-y-6 md:space-y-8">
               
               {/* KPI ROW - EXEC DASHBOARD */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
                  {[
                    { label: "Total Dipesan", value: totalCreated.toLocaleString(), icon: ShoppingBag, color: "#3b82f6", trend: "Volume" },
                    { label: "Pesanan Selesai", value: totalCompleted.toLocaleString(), icon: CheckCircle2, color: "#10b981", trend: "Settled" },
+                   { label: "Pesanan Pending", value: totalPending.toLocaleString(), icon: Clock, color: "#f59e0b", trend: "Waiting" },
                    { label: "Dibatalkan", value: totalCancelled.toLocaleString(), icon: XCircle, color: "#f43f5e", trend: "Failed" },
                    { label: "Completion Rate", value: `${getCompletionRate()}%`, icon: PieChart, color: "#eab308", trend: "Success Info" },
                  ].map((stat, i) => (
@@ -167,10 +170,11 @@ export default function OrderReportPage() {
               </div>
 
               {/* COMMISSION ROW */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                  {[
                    { label: "Potensi Komisi (Dipesan)", value: formatCurrency(totalCreatedComm), icon: DollarSign, color: "#3b82f6", trend: "Estimated" },
                    { label: "Komisi Selesai (Settled)", value: formatCurrency(totalCompletedComm), icon: DollarSign, color: "#10b981", trend: "Secured" },
+                   { label: "Komisi Pending (Waiting)", value: formatCurrency(totalPendingComm), icon: Clock, color: "#f59e0b", trend: "Pending" },
                    { label: "Komisi Dibatalkan (Failed)", value: formatCurrency(totalCancelledComm), icon: DollarSign, color: "#f43f5e", trend: "Lost" },
                  ].map((stat, i) => (
                    <div key={i} className="group relative overflow-hidden bg-[#C50337]/5 backdrop-blur-2xl border border-[#C50337]/10 rounded-2xl p-4 md:p-5 shadow-[0_0_40px_rgba(197,3,55,0.05)] transition-all duration-500 hover:border-[#C50337]/40 hover:bg-[#C50337]/10">
@@ -215,6 +219,7 @@ export default function OrderReportPage() {
                              <tr className="border-b border-white/5">
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest pl-6">Tanggal</th>
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Dipesan</th>
+                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Tertunda (Pending)</th>
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Selesai</th>
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-6">Dibatalkan</th>
                              </tr>
@@ -238,6 +243,12 @@ export default function OrderReportPage() {
                                       <div className="flex items-center justify-center gap-3">
                                          <span className="text-white font-bold bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.created.toLocaleString()}</span>
                                          <span className="text-[11px] text-blue-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.createdComm)}</span>
+                                      </div>
+                                   </td>
+                                   <td className="p-4">
+                                      <div className="flex items-center justify-center gap-3">
+                                         <span className="text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20 whitespace-nowrap min-w-[3rem] text-center">{(row.created - row.completed - row.cancelled).toLocaleString()}</span>
+                                         <span className="text-[11px] text-amber-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.createdComm - row.completedComm - row.cancelledComm)}</span>
                                       </div>
                                    </td>
                                    <td className="p-4">
@@ -276,11 +287,16 @@ export default function OrderReportPage() {
                              </div>
                           </div>
                           
-                          <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5 mt-2">
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-white/5 mt-2">
                              <div className="flex flex-col items-center p-2 bg-blue-500/5 rounded-xl border border-blue-500/10">
                                 <span className="text-[7px] font-black text-blue-500 uppercase tracking-widest mb-0.5">Dipesan</span>
                                 <span className="text-[10px] font-black text-white">{row.created.toLocaleString()}</span>
                                 <span className="text-[7px] font-bold text-blue-400 mt-1">{formatCurrency(row.createdComm)}</span>
+                             </div>
+                             <div className="flex flex-col items-center p-2 bg-amber-500/5 rounded-xl border border-amber-500/10">
+                                <span className="text-[7px] font-black text-amber-500 uppercase tracking-widest mb-0.5">Tertunda</span>
+                                <span className="text-[10px] font-black text-white">{(row.created - row.completed - row.cancelled).toLocaleString()}</span>
+                                <span className="text-[7px] font-bold text-amber-400 mt-1">{formatCurrency(row.createdComm - row.completedComm - row.cancelledComm)}</span>
                              </div>
                              <div className="flex flex-col items-center p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
                                 <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">Selesai</span>
