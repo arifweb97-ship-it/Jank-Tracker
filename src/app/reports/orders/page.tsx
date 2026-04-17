@@ -242,7 +242,7 @@ export default function OrderReportPage() {
                                    <td className="p-4 pl-6">
                                       <div className="flex items-center gap-3">
                                          <div className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-[#C50337] transition-all" />
-                                         <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform">{row.date}</span>
+                                         <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform whitespace-nowrap">{row.date}</span>
                                       </div>
                                    </td>
                                    <td className="p-4">
@@ -275,10 +275,10 @@ export default function OrderReportPage() {
                                            const netProfit = row.completedComm - row.metaSpend;
                                            return (
                                               <>
-                                                <span className={`text-[12px] font-black tracking-wider ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                                <span className={`text-[12px] font-black tracking-wider whitespace-nowrap ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                                                    {netProfit > 0 ? "+" : ""}{formatCurrency(netProfit)}
                                                 </span>
-                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">
                                                    Spend: {formatCurrency(row.metaSpend)}
                                                 </span>
                                               </>
