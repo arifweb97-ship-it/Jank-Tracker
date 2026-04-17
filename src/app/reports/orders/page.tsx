@@ -60,7 +60,9 @@ export default function OrderReportPage() {
       } finally {
         setLoading(false);
       }
-    }
+    };
+
+  useEffect(() => {
     fetchOrderMetrics();
   }, [user]);
 
