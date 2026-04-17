@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Loader2, ShoppingCart, ShoppingBag, XCircle, CheckCircle2, ChevronLeft, ChevronRight, PieChart } from "lucide-react";
+import { Search, Loader2, ShoppingCart, ShoppingBag, XCircle, CheckCircle2, ChevronLeft, ChevronRight, PieChart, UploadCloud } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
+import { OrderImportModal } from "@/components/order-import-modal";
 
 interface OrderMetric {
   date: string;
@@ -20,10 +21,10 @@ export default function OrderReportPage() {
   const [data, setData] = useState<OrderMetric[]>([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
-  useEffect(() => {
-    async function fetchOrderMetrics() {
-      setLoading(true);
+  const fetchOrderMetrics = async () => {
+    setLoading(true);
       try {
         if (!user?.id) return;
         const { data: records } = await supabase
@@ -89,6 +90,13 @@ export default function OrderReportPage() {
           description="Detailed order status analytics & fulfillment monitoring."
           action={
             <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsUploadOpen(true)}
+                className="bg-[#C50337] hover:bg-[#a00028] text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C50337]/20 flex items-center gap-2 transition-all active:scale-95"
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span className="hidden sm:inline">Sync Orders</span>
+              </button>
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#C50337] transition-all duration-300" />
                 <input 
@@ -314,6 +322,12 @@ export default function OrderReportPage() {
           )}
         </div>
       </div>
+      
+      <OrderImportModal 
+        isOpen={isUploadOpen} 
+        onClose={() => setIsUploadOpen(false)} 
+        onSuccess={fetchOrderMetrics} 
+      />
     </ProtectedRoute>
   );
 }
