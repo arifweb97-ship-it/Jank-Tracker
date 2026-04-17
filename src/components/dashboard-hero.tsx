@@ -122,11 +122,15 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
               date: d, spend: 0, commission: 0, meta_clicks: 0, shopee_clicks: 0, orders: 0 
             };
           }
-          consolidated[d].spend += Number(rec.spend) || 0;
-          consolidated[d].commission += Number(rec.commission) || 0;
-          if (rec.category === 'meta') consolidated[d].meta_clicks += Number(rec.clicks) || 0;
-          if (rec.category === 'shopee_click') consolidated[d].shopee_clicks += Number(rec.clicks) || 0;
-          consolidated[d].orders += Number(rec.orders) || 0;
+          if (rec.category === 'meta') {
+            consolidated[d].spend += Number(rec.spend) || 0;
+            consolidated[d].meta_clicks += Number(rec.clicks) || 0;
+          } else if (rec.category === 'shopee_comm') {
+            consolidated[d].commission += Number(rec.commission) || 0;
+            consolidated[d].orders += Number(rec.orders) || 0;
+          } else if (rec.category === 'shopee_click') {
+            consolidated[d].shopee_clicks += Number(rec.clicks) || 0;
+          }
         });
 
         const dailyList = Object.values(consolidated).sort((a: any, b: any) => a.date.localeCompare(b.date));
