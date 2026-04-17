@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Loader2, ShoppingCart, ShoppingBag, XCircle, CheckCircle2, ChevronLeft, ChevronRight, PieChart, UploadCloud } from "lucide-react";
+import { Search, Loader2, ShoppingCart, ShoppingBag, XCircle, CheckCircle2, ChevronLeft, ChevronRight, PieChart, UploadCloud, DollarSign } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
@@ -13,6 +13,9 @@ interface OrderMetric {
   created: number;
   completed: number;
   cancelled: number;
+  createdComm: number;
+  completedComm: number;
+  cancelledComm: number;
 }
 
 export default function OrderReportPage() {
@@ -29,7 +32,7 @@ export default function OrderReportPage() {
         if (!user?.id) return;
         const { data: records } = await supabase
           .from("daily_records")
-          .select("date, source, orders")
+          .select("date, source, orders, commission")
           .eq("user_id", user.id)
           .eq("category", "shopee_orders");
 
@@ -38,12 +41,13 @@ export default function OrderReportPage() {
 
           records.forEach(r => {
             if (!map[r.date]) {
-              map[r.date] = { date: r.date, created: 0, completed: 0, cancelled: 0 };
+              map[r.date] = { date: r.date, created: 0, completed: 0, cancelled: 0, createdComm: 0, completedComm: 0, cancelledComm: 0 };
             }
 
-            if (r.source.includes("Dipesan")) map[r.date].created += (Number(r.orders) || 0);
-            else if (r.source.includes("Selesai")) map[r.date].completed += (Number(r.orders) || 0);
-            else if (r.source.includes("Dibatalkan")) map[r.date].cancelled += (Number(r.orders) || 0);
+            const c = Number(r.commission) || 0;
+            if (r.source.includes("Dipesan")) { map[r.date].created += (Number(r.orders) || 0); map[r.date].createdComm += c; }
+            else if (r.source.includes("Selesai")) { map[r.date].completed += (Number(r.orders) || 0); map[r.date].completedComm += c; }
+            else if (r.source.includes("Dibatalkan")) { map[r.date].cancelled += (Number(r.orders) || 0); map[r.date].cancelledComm += c; }
           });
 
           const formatted = Object.values(map)
@@ -76,6 +80,13 @@ export default function OrderReportPage() {
   const totalCreated = useMemo(() => data.reduce((acc, curr) => acc + curr.created, 0), [data]);
   const totalCompleted = useMemo(() => data.reduce((acc, curr) => acc + curr.completed, 0), [data]);
   const totalCancelled = useMemo(() => data.reduce((acc, curr) => acc + curr.cancelled, 0), [data]);
+
+  const totalCreatedComm = useMemo(() => data.reduce((acc, curr) => acc + curr.createdComm, 0), [data]);
+  const totalCompletedComm = useMemo(() => data.reduce((acc, curr) => acc + curr.completedComm, 0), [data]);
+  const totalCancelledComm = useMemo(() => data.reduce((acc, curr) => acc + curr.cancelledComm, 0), [data]);
+
+  const formatCurrency = (val: number) => 
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
   const getCompletionRate = () => {
     if (totalCreated === 0) return 0;
@@ -153,6 +164,35 @@ export default function OrderReportPage() {
                  ))}
               </div>
 
+              {/* COMMISSION ROW */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+                 {[
+                   { label: "Potensi Komisi (Dipesan)", value: formatCurrency(totalCreatedComm), icon: DollarSign, color: "#3b82f6", trend: "Estimated" },
+                   { label: "Komisi Selesai (Settled)", value: formatCurrency(totalCompletedComm), icon: DollarSign, color: "#10b981", trend: "Secured" },
+                   { label: "Komisi Dibatalkan (Failed)", value: formatCurrency(totalCancelledComm), icon: DollarSign, color: "#f43f5e", trend: "Lost" },
+                 ].map((stat, i) => (
+                   <div key={i} className="group relative overflow-hidden bg-[#C50337]/5 backdrop-blur-2xl border border-[#C50337]/10 rounded-2xl p-4 md:p-5 shadow-[0_0_40px_rgba(197,3,55,0.05)] transition-all duration-500 hover:border-[#C50337]/40 hover:bg-[#C50337]/10">
+                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-[#C50337]">
+                         <stat.icon className="w-12 h-12 md:w-16 md:h-16" />
+                      </div>
+                       <div className="relative z-10 space-y-3 md:space-y-4">
+                          <div className="flex items-center justify-between">
+                             <div className="p-2 rounded-lg md:rounded-xl bg-slate-950/40 border border-white/5" style={{ color: stat.color }}>
+                                <stat.icon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                             </div>
+                             <div className="text-[7px] md:text-[8px] bg-[#C50337]/20 text-[#C50337] px-1.5 md:px-2 py-0.5 md:py-1 rounded font-black uppercase tracking-widest">{stat.trend}</div>
+                          </div>
+                          <div className="flex flex-col space-y-1 md:space-y-2">
+                             <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] opacity-80 leading-none">{stat.label}</span>
+                             <div className="text-xl md:text-2xl font-black text-white tracking-tighter leading-none truncate pr-2">
+                                {stat.value}
+                             </div>
+                          </div>
+                       </div>
+                   </div>
+                 ))}
+              </div>
+
               {/* MAIN DATA FEED */}
               <div className="grid grid-cols-1">
                  {/* DESKTOP TABLE */}
@@ -193,13 +233,22 @@ export default function OrderReportPage() {
                                       </div>
                                    </td>
                                    <td className="p-4 text-center">
-                                      <span className="text-white font-bold bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20">{row.created.toLocaleString()}</span>
+                                      <div className="flex flex-col items-center gap-1">
+                                         <span className="text-white font-bold bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">{row.created.toLocaleString()}</span>
+                                         <span className="text-[9px] text-blue-400 font-bold">{formatCurrency(row.createdComm)}</span>
+                                      </div>
                                    </td>
                                    <td className="p-4 text-center">
-                                      <span className="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">{row.completed.toLocaleString()}</span>
+                                      <div className="flex flex-col items-center gap-1">
+                                         <span className="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap">{row.completed.toLocaleString()}</span>
+                                         <span className="text-[9px] text-emerald-400 font-bold">{formatCurrency(row.completedComm)}</span>
+                                      </div>
                                    </td>
                                    <td className="p-4 text-right pr-6">
-                                      <span className="text-rose-400 font-bold bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20">{row.cancelled.toLocaleString()}</span>
+                                      <div className="flex flex-col items-end gap-1">
+                                         <span className="text-rose-400 font-bold bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20 whitespace-nowrap">{row.cancelled.toLocaleString()}</span>
+                                         <span className="text-[9px] text-rose-400 font-bold">{formatCurrency(row.cancelledComm)}</span>
+                                      </div>
                                    </td>
                                 </tr>
                              ))}
@@ -229,14 +278,17 @@ export default function OrderReportPage() {
                              <div className="flex flex-col items-center p-2 bg-blue-500/5 rounded-xl border border-blue-500/10">
                                 <span className="text-[7px] font-black text-blue-500 uppercase tracking-widest mb-0.5">Dipesan</span>
                                 <span className="text-[10px] font-black text-white">{row.created.toLocaleString()}</span>
+                                <span className="text-[7px] font-bold text-blue-400 mt-1">{formatCurrency(row.createdComm)}</span>
                              </div>
                              <div className="flex flex-col items-center p-2 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
                                 <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">Selesai</span>
                                 <span className="text-[10px] font-black text-white">{row.completed.toLocaleString()}</span>
+                                <span className="text-[7px] font-bold text-emerald-400 mt-1">{formatCurrency(row.completedComm)}</span>
                              </div>
                              <div className="flex flex-col items-center p-2 bg-rose-500/5 rounded-xl border border-rose-500/10">
                                 <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest mb-0.5">Batal</span>
                                 <span className="text-[10px] font-black text-white">{row.cancelled.toLocaleString()}</span>
+                                <span className="text-[7px] font-bold text-rose-400 mt-1">{formatCurrency(row.cancelledComm)}</span>
                              </div>
                           </div>
                        </div>

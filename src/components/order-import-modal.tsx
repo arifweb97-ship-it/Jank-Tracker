@@ -42,6 +42,34 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
     setQueue(prev => prev.filter((_, i) => i !== index));
   };
 
+  const cleanNumber = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    
+    let str = String(val).trim();
+    
+    if (str.includes(',') && str.includes('.')) {
+      const dotIndex = str.lastIndexOf('.');
+      const commaIndex = str.lastIndexOf(',');
+      if (commaIndex > dotIndex) {
+        str = str.replace(/\./g, '').replace(/,/g, '.');
+      } else {
+        str = str.replace(/,/g, '');
+      }
+    } else if (str.includes(',')) {
+      const parts = str.split(',');
+      if (parts[1] && parts[1].length <= 2) {
+        str = str.replace(/,/g, '.');
+      } else {
+        str = str.replace(/,/g, '');
+      }
+    }
+    
+    const cleanStr = str.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? 0 : num;
+  };
+
   const cleanDate = (val: any): string | null => {
     if (!val) return null;
     let str = String(val).trim();
@@ -75,11 +103,12 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
     setStatus(null);
     setCurrentProgress(0);
 
-    const MASTER_ORDERS: Record<string, { created: number, completed: number, cancelled: number, d: string }> = {};
+    const MASTER_ORDERS: Record<string, { created: number, createdComm: number, completed: number, completedComm: number, cancelled: number, cancelledComm: number, d: string }> = {};
 
     const DATE_ALIASES = ["Order Time", "Waktu Pesanan", "Date", "Tanggal"];
     const ORDER_ALIASES = ["Order ID", "Order id", "ID Pesanan", "Order No"];
     const STATUS_ALIASES = ["Order Status", "Status Pesanan", "Status"];
+    const COMM_ALIASES = ["Affiliate Net Commission", "Total Order Commission", "Total Order Commission(Rp)", "Affiliate Net Commission(Rp)", "Komisi", "Estimated Commission", "Estimasi Komisi", "Net Commission", "Komisi Bersih", "Commission", "Net Sale"];
 
     const shopeeOrderFingerprints = new Set<string>();
 
@@ -103,16 +132,25 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
                     shopeeOrderFingerprints.add(String(orderId));
 
                     const rawStatus = getAliasValue(row, STATUS_ALIASES);
+                    const comm = cleanNumber(getAliasValue(row, COMM_ALIASES));
                     let mappedStatus = 'unpaid';
                     if (rawStatus) {
                       const s = String(rawStatus).toLowerCase();
                       if (s.includes('completed') || s.includes('selesai')) mappedStatus = 'completed';
                       else if (s.includes('cancelled') || s.includes('batal')) mappedStatus = 'cancelled';
                     }
-                    MASTER_ORDERS[d] = MASTER_ORDERS[d] || { d, created: 0, completed: 0, cancelled: 0 };
+                    MASTER_ORDERS[d] = MASTER_ORDERS[d] || { d, created: 0, createdComm: 0, completed: 0, completedComm: 0, cancelled: 0, cancelledComm: 0 };
                     MASTER_ORDERS[d].created += 1;
-                    if (mappedStatus === 'completed') MASTER_ORDERS[d].completed += 1;
-                    if (mappedStatus === 'cancelled') MASTER_ORDERS[d].cancelled += 1;
+                    MASTER_ORDERS[d].createdComm += comm;
+                    
+                    if (mappedStatus === 'completed') {
+                      MASTER_ORDERS[d].completed += 1;
+                      MASTER_ORDERS[d].completedComm += comm;
+                    }
+                    if (mappedStatus === 'cancelled') {
+                      MASTER_ORDERS[d].cancelled += 1;
+                      MASTER_ORDERS[d].cancelledComm += comm;
+                    }
                   }
                 });
                 
@@ -137,13 +175,13 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
         Object.values(MASTER_ORDERS).forEach(val => {
           if (val.created > 0) {
             orderRows.push({
-               date: val.d, category: "shopee_orders", source: "Status >>> Dipesan", orders: val.created, updated_at: new Date().toISOString(), user_id: user?.id
+               date: val.d, category: "shopee_orders", source: "Status >>> Dipesan", orders: val.created, commission: Number(val.createdComm.toFixed(2)), updated_at: new Date().toISOString(), user_id: user?.id
             });
             orderRows.push({
-               date: val.d, category: "shopee_orders", source: "Status >>> Selesai", orders: val.completed, updated_at: new Date().toISOString(), user_id: user?.id
+               date: val.d, category: "shopee_orders", source: "Status >>> Selesai", orders: val.completed, commission: Number(val.completedComm.toFixed(2)), updated_at: new Date().toISOString(), user_id: user?.id
             });
             orderRows.push({
-               date: val.d, category: "shopee_orders", source: "Status >>> Dibatalkan", orders: val.cancelled, updated_at: new Date().toISOString(), user_id: user?.id
+               date: val.d, category: "shopee_orders", source: "Status >>> Dibatalkan", orders: val.cancelled, commission: Number(val.cancelledComm.toFixed(2)), updated_at: new Date().toISOString(), user_id: user?.id
             });
           }
         });
