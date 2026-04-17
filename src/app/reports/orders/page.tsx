@@ -104,22 +104,22 @@ export default function OrderReportPage() {
           title="Shopee Order Tracking"
           description="Detailed order status analytics & fulfillment monitoring."
           action={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button 
                 onClick={() => setIsUploadOpen(true)}
-                className="bg-[#C50337] hover:bg-[#a00028] text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C50337]/20 flex items-center gap-2 transition-all active:scale-95"
+                className="bg-[#C50337] hover:bg-[#a00028] text-white px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C50337]/20 flex items-center gap-2 transition-all active:scale-95"
               >
                 <UploadCloud className="w-4 h-4" />
-                <span className="hidden sm:inline">Sync Orders</span>
+                <span className="hidden sm:inline">Sync</span>
               </button>
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-[#C50337] transition-all duration-300" />
                 <input 
                   type="text" 
-                  placeholder="Search Date (YYYY-MM-DD)..." 
+                  placeholder="Search Date..." 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-xl pl-10 pr-4 py-2 text-[11px] text-white focus:outline-none focus:border-[#C50337]/50 w-64 transition-all font-bold placeholder:text-slate-600 shadow-2xl"
+                  className="bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-xl pl-9 md:pl-10 pr-3 md:pr-4 py-2 text-[10px] md:text-[11px] text-white focus:outline-none focus:border-[#C50337]/50 w-32 sm:w-48 md:w-64 transition-all font-bold placeholder:text-slate-600 shadow-2xl"
                 />
               </div>
             </div>
@@ -147,7 +147,7 @@ export default function OrderReportPage() {
                    { label: "Dibatalkan", value: totalCancelled.toLocaleString(), icon: XCircle, color: "#f43f5e", trend: "Failed" },
                    { label: "Completion Rate", value: `${getCompletionRate()}%`, icon: PieChart, color: "#eab308", trend: "Success Info" },
                  ].map((stat, i) => (
-                   <div key={i} className="group relative overflow-hidden bg-slate-900/20 backdrop-blur-2xl border border-white/5 rounded-2xl p-4 md:p-5 shadow-[0_0_40px_rgba(0,0,0,0.3)] transition-all duration-500 hover:border-[#C50337]/40">
+                   <div key={i} className={`group relative overflow-hidden bg-slate-900/20 backdrop-blur-2xl border border-white/5 rounded-2xl p-4 md:p-5 shadow-[0_0_40px_rgba(0,0,0,0.3)] transition-all duration-500 hover:border-[#C50337]/40 ${i === 4 ? "col-span-2 lg:col-span-1" : ""}`}>
                       <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                          <stat.icon className="w-12 h-12 md:w-16 md:h-16" />
                       </div>
