@@ -16,6 +16,7 @@ interface OrderMetric {
   createdComm: number;
   completedComm: number;
   cancelledComm: number;
+  metaSpend: number;
 }
 
 export default function OrderReportPage() {
@@ -32,22 +33,26 @@ export default function OrderReportPage() {
         if (!user?.id) return;
         const { data: records } = await supabase
           .from("daily_records")
-          .select("date, source, orders, commission")
+          .select("date, source, category, orders, commission, spend")
           .eq("user_id", user.id)
-          .eq("category", "shopee_orders");
+          .in("category", ["shopee_orders", "meta"]);
 
         if (records) {
           const map: Record<string, OrderMetric> = {};
 
           records.forEach(r => {
             if (!map[r.date]) {
-              map[r.date] = { date: r.date, created: 0, completed: 0, cancelled: 0, createdComm: 0, completedComm: 0, cancelledComm: 0 };
+              map[r.date] = { date: r.date, created: 0, completed: 0, cancelled: 0, createdComm: 0, completedComm: 0, cancelledComm: 0, metaSpend: 0 };
             }
 
-            const c = Number(r.commission) || 0;
-            if (r.source.includes("Dipesan")) { map[r.date].created += (Number(r.orders) || 0); map[r.date].createdComm += c; }
-            else if (r.source.includes("Selesai")) { map[r.date].completed += (Number(r.orders) || 0); map[r.date].completedComm += c; }
-            else if (r.source.includes("Dibatalkan")) { map[r.date].cancelled += (Number(r.orders) || 0); map[r.date].cancelledComm += c; }
+            if (r.category === "meta") {
+              map[r.date].metaSpend += (Number(r.spend) || 0);
+            } else if (r.category === "shopee_orders") {
+               const c = Number(r.commission) || 0;
+               if (r.source.includes("Dipesan")) { map[r.date].created += (Number(r.orders) || 0); map[r.date].createdComm += c; }
+               else if (r.source.includes("Selesai")) { map[r.date].completed += (Number(r.orders) || 0); map[r.date].completedComm += c; }
+               else if (r.source.includes("Dibatalkan")) { map[r.date].cancelled += (Number(r.orders) || 0); map[r.date].cancelledComm += c; }
+            }
           });
 
           const formatted = Object.values(map)
@@ -222,6 +227,7 @@ export default function OrderReportPage() {
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Tertunda (Pending)</th>
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Selesai</th>
                                 <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-6">Dibatalkan</th>
+                                <th className="p-4 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-6 min-w-[120px]">Net Profit Cair</th>
                              </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5 text-[11px]">
@@ -261,6 +267,23 @@ export default function OrderReportPage() {
                                       <div className="flex items-center justify-end gap-3">
                                          <span className="text-[11px] text-rose-400 font-black tracking-wider w-24 text-right">{formatCurrency(row.cancelledComm)}</span>
                                          <span className="text-rose-400 font-bold bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.cancelled.toLocaleString()}</span>
+                                      </div>
+                                   </td>
+                                   <td className="p-4 pr-6">
+                                      <div className="flex flex-col items-end gap-1">
+                                         {(() => {
+                                           const netProfit = row.completedComm - row.metaSpend;
+                                           return (
+                                              <>
+                                                <span className={`text-[12px] font-black tracking-wider ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                                   {netProfit > 0 ? "+" : ""}{formatCurrency(netProfit)}
+                                                </span>
+                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                                                   Spend: {formatCurrency(row.metaSpend)}
+                                                </span>
+                                              </>
+                                           );
+                                         })()}
                                       </div>
                                    </td>
                                 </tr>
@@ -307,6 +330,25 @@ export default function OrderReportPage() {
                                 <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest mb-0.5">Batal</span>
                                 <span className="text-[10px] font-black text-white">{row.cancelled.toLocaleString()}</span>
                                 <span className="text-[7px] font-bold text-rose-400 mt-1">{formatCurrency(row.cancelledComm)}</span>
+                             </div>
+                          </div>
+                          
+                          <div className="p-3 bg-slate-950/40 rounded-xl border border-white/5 flex items-center justify-between mt-3">
+                             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Net Profit Cair:</span>
+                             <div className="flex flex-col items-end">
+                                {(() => {
+                                  const netProfit = row.completedComm - row.metaSpend;
+                                  return (
+                                     <>
+                                       <span className={`text-[12px] font-black tracking-tight ${netProfit >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                          {netProfit > 0 ? "+" : ""}{formatCurrency(netProfit)}
+                                       </span>
+                                       <span className="text-[7px] font-bold text-slate-600 uppercase tracking-widest">
+                                          Spend: {formatCurrency(row.metaSpend)}
+                                       </span>
+                                     </>
+                                  );
+                                })()}
                              </div>
                           </div>
                        </div>
