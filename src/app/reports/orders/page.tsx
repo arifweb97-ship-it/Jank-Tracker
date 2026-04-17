@@ -234,22 +234,22 @@ export default function OrderReportPage() {
                                          <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform">{row.date}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4 text-center">
-                                      <div className="flex flex-col items-center gap-1">
-                                         <span className="text-white font-bold bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap">{row.created.toLocaleString()}</span>
-                                         <span className="text-[9px] text-blue-400 font-bold">{formatCurrency(row.createdComm)}</span>
+                                   <td className="p-4">
+                                      <div className="flex items-center justify-center gap-3">
+                                         <span className="text-white font-bold bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.created.toLocaleString()}</span>
+                                         <span className="text-[11px] text-blue-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.createdComm)}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4 text-center">
-                                      <div className="flex flex-col items-center gap-1">
-                                         <span className="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap">{row.completed.toLocaleString()}</span>
-                                         <span className="text-[9px] text-emerald-400 font-bold">{formatCurrency(row.completedComm)}</span>
+                                   <td className="p-4">
+                                      <div className="flex items-center justify-center gap-3">
+                                         <span className="text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.completed.toLocaleString()}</span>
+                                         <span className="text-[11px] text-emerald-400 font-black tracking-wider w-24 text-left">{formatCurrency(row.completedComm)}</span>
                                       </div>
                                    </td>
-                                   <td className="p-4 text-right pr-6">
-                                      <div className="flex flex-col items-end gap-1">
-                                         <span className="text-rose-400 font-bold bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20 whitespace-nowrap">{row.cancelled.toLocaleString()}</span>
-                                         <span className="text-[9px] text-rose-400 font-bold">{formatCurrency(row.cancelledComm)}</span>
+                                   <td className="p-4 pr-6">
+                                      <div className="flex items-center justify-end gap-3">
+                                         <span className="text-[11px] text-rose-400 font-black tracking-wider w-24 text-right">{formatCurrency(row.cancelledComm)}</span>
+                                         <span className="text-rose-400 font-bold bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20 whitespace-nowrap min-w-[3rem] text-center">{row.cancelled.toLocaleString()}</span>
                                       </div>
                                    </td>
                                 </tr>
