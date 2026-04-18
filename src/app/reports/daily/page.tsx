@@ -45,7 +45,8 @@ export default function DailyReportPage() {
           .from("daily_records")
           .select("*")
           .eq("user_id", user.id)
-          .order("date", { ascending: false });
+          .order("date", { ascending: false })
+          .limit(10000);
 
         if (!allRecords) return;
 
