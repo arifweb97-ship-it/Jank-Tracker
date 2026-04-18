@@ -387,7 +387,7 @@ export default function AdminConsole() {
           <div className="grid grid-cols-1 gap-4 md:hidden">
             {data.map((p, index) => (
               <div key={p.id} className="bg-slate-900/40 border border-white/5 p-6 rounded-xl flex flex-col gap-6 relative overflow-visible group">
-                 <div className="absolute top-0 right-0 p-4">
+                 <div className="absolute top-0 right-0 p-4 manage-menu-container z-50">
                     <button 
                       onClick={() => setActiveMenu(activeMenu === p.id ? null : p.id)}
                       className={cn(
