@@ -41,14 +41,29 @@ export default function DailyReportPage() {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const { data: allRecords } = await supabase
-          .from("daily_records")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("date", { ascending: false })
-          .limit(10000);
+        let allRecords: any[] = [];
+        let from = 0;
+        const step = 1000;
+        let fetchMore = true;
 
-        if (!allRecords) return;
+        while (fetchMore) {
+          const { data } = await supabase
+            .from("daily_records")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("date", { ascending: false })
+            .range(from, from + step - 1);
+
+          if (data && data.length > 0) {
+            allRecords = [...allRecords, ...data];
+            from += step;
+            if (data.length < step) fetchMore = false;
+          } else {
+            fetchMore = false;
+          }
+        }
+
+        if (allRecords.length === 0) return;
 
         const dateGroups: Record<string, DailyRecord> = {};
 

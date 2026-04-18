@@ -98,18 +98,31 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
       }
       setLoading(true);
       try {
-        const { data: allRecords, error: fetchErr } = await supabase
-          .from("daily_records")
-          .select("*")
-          .eq("user_id", user?.id)
-          .order("date", { ascending: false })
-          .limit(10000);
+        let allRecords: any[] = [];
+        let from = 0;
+        const step = 1000;
+        let fetchMore = true;
 
-        if (fetchErr) {
-          throw fetchErr;
+        while (fetchMore) {
+          const { data, error: fetchErr } = await supabase
+            .from("daily_records")
+            .select("*")
+            .eq("user_id", user?.id)
+            .order("date", { ascending: false })
+            .range(from, from + step - 1);
+
+          if (fetchErr) throw fetchErr;
+
+          if (data && data.length > 0) {
+            allRecords = [...allRecords, ...data];
+            from += step;
+            if (data.length < step) fetchMore = false;
+          } else {
+            fetchMore = false;
+          }
         }
 
-        if (!allRecords || allRecords.length === 0) {
+        if (allRecords.length === 0) {
           setLoading(false);
           return;
         }
