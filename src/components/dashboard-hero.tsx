@@ -136,8 +136,13 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
 
         const dailyList = Object.values(consolidated).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-        const totalSpend = dailyList.reduce((sum, row) => sum + row.spend, 0);
-        const totalCommission = dailyList.reduce((sum, row) => sum + row.commission, 0);
+        const currentMonthString = format(new Date(), "yyyy-MM");
+        const currentMonthData = dailyList.filter((row: any) => row.date.startsWith(currentMonthString));
+
+        const allTimeSpend = dailyList.reduce((sum, row) => sum + row.spend, 0);
+
+        const totalSpend = currentMonthData.reduce((sum, row) => sum + row.spend, 0);
+        const totalCommission = currentMonthData.reduce((sum, row) => sum + row.commission, 0);
 
         setCumulativeStats({
           spend: totalSpend,
@@ -191,7 +196,7 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
         
         if (!depErr && deposits) {
           const totalDeposits = deposits.reduce((sum, d) => sum + Number(d.amount), 0);
-          setBalance(totalDeposits - totalSpend);
+          setBalance(totalDeposits - allTimeSpend);
         }
 
       } catch (error) {
