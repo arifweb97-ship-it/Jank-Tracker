@@ -73,12 +73,30 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
   const cleanDate = (val: any): string | null => {
     if (!val) return null;
     let str = String(val).trim();
-    if (str.includes(' ')) str = str.split(' ')[0];
-    const formats = ["yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "yyyy/MM/dd", "dd-MM-yyyy", "MMM dd, yyyy", "yyyyMMdd"];
+    
+    // If it looks like a standard ISO timestamp (e.g. 2026-04-17 14:30:00), split by space
+    if (str.match(/^\d{4}-\d{2}-\d{2}\s/)) {
+      str = str.split(' ')[0];
+    } else if (str.match(/^\d{2}\/\d{2}\/\d{4}\s/)) {
+      str = str.split(' ')[0];
+    }
+
+    const formats = [
+      "yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "yyyy/MM/dd", "dd-MM-yyyy", 
+      "MMM dd, yyyy", "dd MMM yyyy", "dd-MMM-yyyy", "yyyyMMdd", "MMMM dd, yyyy"
+    ];
+    
     for (const f of formats) {
       const d = parse(str, f, new Date());
       if (isValid(d)) return format(d, "yyyy-MM-dd");
     }
+    
+    // Fallback try standard JS Date parsing if date-fns formats missed it
+    const jsDate = new Date(str);
+    if (!isNaN(jsDate.getTime())) {
+       return format(jsDate, "yyyy-MM-dd");
+    }
+
     return null;
   };
 
