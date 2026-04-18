@@ -24,6 +24,7 @@ CREATE TABLE public.profiles (
   address text,
   role text DEFAULT 'user' CHECK (role IN ('admin', 'user')),
   is_locked boolean DEFAULT false,
+  admin_pin VARCHAR(6) DEFAULT '000000',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

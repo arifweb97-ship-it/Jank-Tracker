@@ -24,10 +24,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<'identify' | 'verify'>('identify');
+  const [step, setStep] = useState<'identify' | 'verify' | 'verify_admin'>('identify');
   const [tempIdentity, setTempIdentity] = useState<any>(null);
   const [otp, setOtp] = useState(["", "", "", ""]);
+  const [adminOtp, setAdminOtp] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const adminInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
   const { user, role } = useAuth();
 
@@ -64,12 +66,10 @@ export default function LoginPage() {
           return;
         }
 
-        // 🟢 ADMIN BYPASS: Direct Access
+        // 🟢 ADMIN 2FA: PIN Verification
         if ((identity as any).role === "admin") {
-           if (typeof window !== "undefined") {
-              localStorage.setItem("jank_auth_bypass_email", (identity as any).email);
-              window.location.href = "/admin";
-           }
+           setTempIdentity(identity);
+           setStep('verify_admin');
            return;
         }
 
@@ -123,6 +123,34 @@ export default function LoginPage() {
     }
   };
 
+  const handleAdminVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const combinedCode = adminOtp.join("");
+    if (combinedCode.length < 6 || !tempIdentity) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const expectedCode = tempIdentity.admin_pin || "000000";
+      
+      if (combinedCode === expectedCode) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("jank_auth_bypass_email", tempIdentity.email);
+          window.location.href = "/admin";
+        }
+      } else {
+        setError("Security Token Mismatch: Admin PIN Incorrect.");
+        setAdminOtp(["", "", "", "", "", ""]);
+        adminInputRefs.current[0]?.focus();
+      }
+    } catch (err: any) {
+      setError("Crypto Failure: Decryption sequence interrupted.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOtpChange = (index: number, value: string) => {
      if (value.length > 1) value = value.slice(-1);
      if (!/^\d*$/.test(value)) return;
@@ -150,6 +178,33 @@ export default function LoginPage() {
      }
   };
 
+  const handleAdminOtpChange = (index: number, value: string) => {
+     if (value.length > 1) value = value.slice(-1);
+     if (!/^\d*$/.test(value)) return;
+
+     const newOtp = [...adminOtp];
+     newOtp[index] = value;
+     setAdminOtp(newOtp);
+
+     if (value && index < 5) {
+        adminInputRefs.current[index + 1]?.focus();
+     }
+  };
+
+  const handleAdminOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+     if (e.key === 'Backspace' && !adminOtp[index] && index > 0) {
+        adminInputRefs.current[index - 1]?.focus();
+     }
+  };
+
+  const handleAdminPaste = (e: React.ClipboardEvent) => {
+     const pastedData = e.clipboardData.getData('text').slice(0, 6).replace(/\D/g, '');
+     if (pastedData.length === 6) {
+        setAdminOtp(pastedData.split(''));
+        adminInputRefs.current[5]?.focus();
+     }
+  };
+
 
   return (
     <div className="min-h-screen bg-[#02060E] flex flex-col items-center justify-center p-3 sm:p-6 selection:bg-[#C50337]/30 font-inter relative overflow-hidden">
@@ -171,7 +226,7 @@ export default function LoginPage() {
             </div>
         </header>
 
-        <form onSubmit={step === 'identify' ? handleAuth : handleVerify} className="space-y-6">
+        <form onSubmit={step === 'identify' ? handleAuth : step === 'verify' ? handleVerify : handleAdminVerify} className="space-y-6">
           <div className="space-y-5">
              {step === 'identify' ? (
                 <div className="space-y-2.5 animate-in slide-in-from-left-4 duration-300">
@@ -191,7 +246,7 @@ export default function LoginPage() {
                      />
                    </div>
                 </div>
-             ) : (
+              ) : step === 'verify' ? (
                 <div className="space-y-4 animate-in slide-in-from-right-4 duration-500">
                    <div className="flex items-center justify-between px-1">
                       <button 
@@ -227,6 +282,49 @@ export default function LoginPage() {
                               onPaste={index === 0 ? handlePaste : undefined}
                                className={cn(
                                   "w-14 h-16 sm:w-[68px] sm:h-20 bg-slate-950/50 border border-white/5 text-center text-2xl sm:text-3xl font-black text-white focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/10 outline-none transition-all rounded-xl sm:rounded-2xl shadow-inner",
+                                  digit && "border-white/10"
+                               )}
+                           />
+                        ))}
+                      </div>
+                   </div>
+                </div>
+             ) : (
+                <div className="space-y-4 animate-in slide-in-from-right-4 duration-500">
+                   <div className="flex items-center justify-between px-1">
+                      <button 
+                        type="button" 
+                        onClick={() => { setStep('identify'); setError(null); setAdminOtp(["", "", "", "", "", ""]); }}
+                        className="text-[10px] font-black text-[#C50337] uppercase tracking-widest flex items-center gap-1 hover:opacity-70 transition-opacity"
+                      >
+                         <ChevronLeft className="w-3 h-3" /> Back
+                      </button>
+                      <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Admin Step 02</span>
+                   </div>
+                   
+                   <div className="bg-white/[0.02] border border-rose-500/10 p-4 rounded-2xl mb-2">
+                      <p className="text-[10px] font-medium text-slate-500 leading-relaxed">
+                        Admin identity confirmed for <span className="text-white font-bold">{tempIdentity.email}</span>. Please enter your <span className="text-rose-500 font-black underline decoration-rose-500/30 underline-offset-4">6-digit PIN</span> to access the command center.
+                      </p>
+                   </div>
+
+                   <div className="space-y-4">
+                      <label className="text-[11px] font-bold text-slate-500 tracking-wide px-1 block text-center">Admin Access PIN</label>
+                       <div className="flex justify-center gap-1.5 sm:gap-2 px-0">
+                        {adminOtp.map((digit, index) => (
+                           <input
+                              key={index}
+                              ref={el => { adminInputRefs.current[index] = el; }}
+                              type="password"
+                              inputMode="numeric"
+                              pattern="\d*"
+                              maxLength={1}
+                              value={digit}
+                              onChange={e => handleAdminOtpChange(index, e.target.value)}
+                              onKeyDown={e => handleAdminOtpKeyDown(index, e)}
+                              onPaste={index === 0 ? handleAdminPaste : undefined}
+                               className={cn(
+                                  "w-10 h-14 sm:w-12 sm:h-16 bg-slate-950/50 border border-white/5 text-center text-xl sm:text-2xl font-black text-white focus:border-rose-500/50 focus:ring-1 focus:ring-rose-500/10 outline-none transition-all rounded-xl shadow-inner",
                                   digit && "border-white/10"
                                )}
                            />

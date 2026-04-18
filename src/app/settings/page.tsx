@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Bell,
-  Database
+  Database,
+  Lock
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -25,10 +26,18 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
+  const [isSavingPin, setIsSavingPin] = useState(false);
+  const [pinSaveStatus, setPinSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
   // Local Form State
   const [formData, setFormData] = useState({
     fullName: "",
     email: ""
+  });
+  
+  const [pinFormData, setPinFormData] = useState({
+    newPin: "",
+    confirmPin: ""
   });
 
   useEffect(() => {
@@ -75,6 +84,37 @@ export default function SettingsPage() {
       setSaveStatus('error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSavePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    
+    if (pinFormData.newPin.length !== 6 || pinFormData.newPin !== pinFormData.confirmPin) {
+       setPinSaveStatus('error');
+       return;
+    }
+    
+    setIsSavingPin(true);
+    setPinSaveStatus('idle');
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ admin_pin: pinFormData.newPin })
+        .eq("id", user.id);
+        
+      if (error) throw error;
+      setPinSaveStatus('success');
+      setPinFormData({ newPin: "", confirmPin: "" });
+      
+      setTimeout(() => setPinSaveStatus('idle'), 3000);
+    } catch (err) {
+      console.error("PIN Save error:", err);
+      setPinSaveStatus('error');
+    } finally {
+      setIsSavingPin(false);
     }
   };
 
@@ -157,6 +197,76 @@ export default function SettingsPage() {
                   </div>
                 </form>
               </div>
+
+              {role === 'admin' && (
+                <div className="bg-slate-900/40 backdrop-blur-md border border-rose-500/20 p-10 rounded-3xl shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                    <Shield className="w-48 h-48 text-rose-500" />
+                  </div>
+                  
+                  <h3 className="text-xl font-black text-rose-500 tracking-tight mb-8">Admin Access PIN</h3>
+                  
+                  <form onSubmit={handleSavePin} className="space-y-8 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">New 6-Digit PIN</label>
+                        <div className="relative group/field">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 transition-colors group-focus-within/field:text-rose-500" />
+                          <input 
+                            type="password" 
+                            maxLength={6}
+                            value={pinFormData.newPin}
+                            onChange={e => setPinFormData({...pinFormData, newPin: e.target.value.replace(/\D/g, '')})}
+                            className="w-full bg-slate-950 border border-white/5 pl-12 pr-4 py-4 text-white text-xs font-bold focus:border-rose-500/50 outline-none rounded-2xl transition-all shadow-inner"
+                            placeholder="000000"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Confirm PIN</label>
+                        <div className="relative group/field">
+                          <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 transition-colors group-focus-within/field:text-rose-500" />
+                          <input 
+                            type="password" 
+                            maxLength={6}
+                            value={pinFormData.confirmPin}
+                            onChange={e => setPinFormData({...pinFormData, confirmPin: e.target.value.replace(/\D/g, '')})}
+                            className="w-full bg-slate-950 border border-white/5 pl-12 pr-4 py-4 text-white text-xs font-bold focus:border-rose-500/50 outline-none rounded-2xl transition-all shadow-inner"
+                            placeholder="000000"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-white/5 pt-8">
+                      <div className="flex-1">
+                        {pinSaveStatus === 'success' && (
+                          <div className="flex items-center gap-2 text-emerald-500 animate-in fade-in slide-in-from-left-2">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span className="text-[9px] font-black tracking-widest uppercase">PIN Updated</span>
+                          </div>
+                        )}
+                        {pinSaveStatus === 'error' && (
+                          <div className="flex items-center gap-2 text-rose-500 animate-in fade-in slide-in-from-left-2">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="text-[9px] font-black tracking-widest uppercase">Update Failed or Mismatch</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <button 
+                        type="submit"
+                        disabled={isSavingPin || pinFormData.newPin.length !== 6}
+                        className="px-10 py-4 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest transition-all rounded-2xl shadow-xl shadow-rose-600/30 flex items-center gap-3 active:scale-95 disabled:opacity-50"
+                      >
+                        {isSavingPin ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Update PIN
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
 
               <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 p-10 rounded-3xl shadow-2xl">
                  <h3 className="text-xl font-black text-white tracking-tight mb-8">System Access Layers</h3>
