@@ -102,7 +102,8 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
           .from("daily_records")
           .select("*")
           .eq("user_id", user?.id)
-          .order("date", { ascending: true });
+          .order("date", { ascending: false })
+          .limit(10000);
 
         if (fetchErr) {
           throw fetchErr;
