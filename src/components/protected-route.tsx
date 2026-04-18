@@ -22,6 +22,9 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
       } else if (adminOnly && role !== "admin") {
         // 🛡️ Unauthorized Node: Redirect to Dashboard
         router.push("/dashboard");
+      } else if (!adminOnly && role === "admin") {
+        // 🛡️ Admin Node: Redirect to Admin Console
+        router.push("/admin");
       }
     }
   }, [user, loading, role, adminOnly, router]);

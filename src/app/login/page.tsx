@@ -31,17 +31,17 @@ export default function LoginPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const adminInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
-  const { user, role } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user) {
       if (role === "admin") {
         router.push("/admin");
       } else {
         router.push("/dashboard");
       }
     }
-  }, [user, role]);
+  }, [user, role, authLoading, router]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
