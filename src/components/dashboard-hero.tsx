@@ -119,7 +119,7 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
           const d = rec.date;
           if (!consolidated[d]) {
             consolidated[d] = { 
-              date: d, spend: 0, commission: 0, completed_commission: 0, meta_clicks: 0, shopee_clicks: 0, orders: 0 
+              date: d, spend: 0, commission: 0, meta_clicks: 0, shopee_clicks: 0, orders: 0 
             };
           }
           if (rec.category === 'meta') {
@@ -130,10 +130,6 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
             consolidated[d].orders += Number(rec.orders) || 0;
           } else if (rec.category === 'shopee_click') {
             consolidated[d].shopee_clicks += Number(rec.clicks) || 0;
-          } else if (rec.category === 'shopee_orders') {
-            if (rec.source && rec.source.includes("Selesai")) {
-              consolidated[d].completed_commission += Number(rec.commission) || 0;
-            }
           }
         });
 
@@ -141,12 +137,11 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
 
         const totalSpend = dailyList.reduce((sum, row) => sum + row.spend, 0);
         const totalCommission = dailyList.reduce((sum, row) => sum + row.commission, 0);
-        const totalCompletedCommission = dailyList.reduce((sum, row) => sum + row.completed_commission, 0);
 
         setCumulativeStats({
           spend: totalSpend,
           commission: totalCommission,
-          profit: totalCompletedCommission - totalSpend,
+          profit: totalCommission - totalSpend,
           roas: totalSpend > 0 ? totalCommission / totalSpend : 0
         });
 
@@ -156,7 +151,7 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
         setDailyStats({
           spend: latest.spend,
           commission: latest.commission,
-          profit: latest.completed_commission - latest.spend,
+          profit: latest.commission - latest.spend,
           roas: latest.spend > 0 ? latest.commission / latest.spend : 0,
           metaClicks: latest.meta_clicks,
           shopeeClicks: latest.shopee_clicks
@@ -171,12 +166,12 @@ export function DashboardHero({ refreshKey }: { refreshKey?: number }) {
         for (let i = 29; i >= 0; i--) {
           const d = subDays(endDateObj, i);
           const dateStr = format(d, "yyyy-MM-dd");
-          const record = consolidated[dateStr] || { spend: 0, commission: 0, completed_commission: 0 };
+          const record = consolidated[dateStr] || { spend: 0, commission: 0 };
           last30Days.push({
             date: dateStr,
             spend: record.spend,
             commission: record.commission,
-            profit: record.completed_commission - record.spend,
+            profit: record.commission - record.spend,
             formattedDate: format(d, "dd MMM")
           });
         }
