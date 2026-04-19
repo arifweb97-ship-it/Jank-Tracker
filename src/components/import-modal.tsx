@@ -217,25 +217,41 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                 } else {
                   const isComm = h.includes("order") || h.includes("commission") || h.includes("komisi") || h.includes("estimasi");
                   if (isComm) {
+                    const hasItemComm = getAliasValue(data[0] || {}, ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi", "Estimated Commission"]) !== null;
                     data.forEach((row: any) => {
                       const d = cleanDate(getAliasValue(row, DATE_ALIASES));
                       const orderId = getAliasValue(row, ORDER_ALIASES);
-                      const comm = cleanNumber(getAliasValue(row, COMM_ALIASES)); 
+                      
                       let technical = getAliasValue(row, PLATFORM_ALIASES) || "Others";
                       let tag = normalizeTag(getAliasValue(row, TAG_ALIASES) || "Shopee");
                       
                       if (["facebook", "fb", "instagram", "ig", "threads", "google", "youtube", "yt", "tiktok", "shopee", "untagged", "default", "others", "other"].includes(tag.toLowerCase())) {
                         tag = "Other";
                       }
-                      if (d && orderId && !shopeeCommFingerprints.has(String(orderId))) {
-                        shopeeCommFingerprints.add(String(orderId));
+                      
+                      if (d && orderId) {
+                        const isNewOrder = !shopeeCommFingerprints.has(String(orderId));
+                        if (isNewOrder) {
+                          shopeeCommFingerprints.add(String(orderId));
+                        }
+                        
+                        let rowComm = 0;
+                        if (hasItemComm) {
+                          rowComm = cleanNumber(getAliasValue(row, ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi", "Estimated Commission"]));
+                        } else {
+                          if (isNewOrder) {
+                            rowComm = cleanNumber(getAliasValue(row, COMM_ALIASES));
+                          }
+                        }
+
                         MASTER_COMM[d] = MASTER_COMM[d] || [];
                         const existing = MASTER_COMM[d].find(x => x.tag === tag && x.source === technical);
+                        
                         if (existing) { 
-                          existing.amount += comm; 
-                          existing.orders += 1; 
+                          existing.amount += rowComm; 
+                          if (isNewOrder) existing.orders += 1; 
                         } else { 
-                          MASTER_COMM[d].push({ amount: comm, orders: 1, d, tag, source: technical }); 
+                          MASTER_COMM[d].push({ amount: rowComm, orders: isNewOrder ? 1 : 0, d, tag, source: technical }); 
                         }
                       }
                     });

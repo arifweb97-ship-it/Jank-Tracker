@@ -127,6 +127,7 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
     const ORDER_ALIASES = ["Order ID", "Order id", "ID Pesanan", "Order No"];
     const STATUS_ALIASES = ["Order Status", "Status Pesanan", "Status"];
     const COMM_ALIASES = ["Affiliate Net Commission", "Total Order Commission", "Total Order Commission(Rp)", "Affiliate Net Commission(Rp)", "Komisi", "Estimated Commission", "Estimasi Komisi", "Net Commission", "Komisi Bersih", "Commission", "Net Sale"];
+    const ITEM_COMM_ALIASES = ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi Item"];
 
     const shopeeOrderFingerprints = new Set<string>();
 
@@ -142,15 +143,28 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
                 const data = results.data;
                 if (data.length === 0) return resolve(true);
 
+                // Detect if CSV has per-item commission column
+                const hasItemComm = getAliasValue(data[0] || {}, ITEM_COMM_ALIASES) !== null;
+
                 data.forEach((row: any) => {
                   const d = cleanDate(getAliasValue(row, DATE_ALIASES));
                   const orderId = getAliasValue(row, ORDER_ALIASES);
                   
-                  if (d && orderId && !shopeeOrderFingerprints.has(String(orderId))) {
-                    shopeeOrderFingerprints.add(String(orderId));
+                  if (d && orderId) {
+                    const isNewOrder = !shopeeOrderFingerprints.has(String(orderId));
+                    if (isNewOrder) {
+                      shopeeOrderFingerprints.add(String(orderId));
+                    }
 
                     const rawStatus = getAliasValue(row, STATUS_ALIASES);
-                    const comm = cleanNumber(getAliasValue(row, COMM_ALIASES));
+                    // Use per-item commission for every row, or order-level only for the first row
+                    let comm = 0;
+                    if (hasItemComm) {
+                      comm = cleanNumber(getAliasValue(row, ITEM_COMM_ALIASES));
+                    } else if (isNewOrder) {
+                      comm = cleanNumber(getAliasValue(row, COMM_ALIASES));
+                    }
+
                     let mappedStatus = 'unpaid';
                     if (rawStatus) {
                       const s = String(rawStatus).toLowerCase();
@@ -158,15 +172,15 @@ export function OrderImportModal({ isOpen, onClose, onSuccess }: OrderImportModa
                       else if (s.includes('cancelled') || s.includes('batal')) mappedStatus = 'cancelled';
                     }
                     MASTER_ORDERS[d] = MASTER_ORDERS[d] || { d, created: 0, createdComm: 0, completed: 0, completedComm: 0, cancelled: 0, cancelledComm: 0 };
-                    MASTER_ORDERS[d].created += 1;
+                    if (isNewOrder) MASTER_ORDERS[d].created += 1;
                     MASTER_ORDERS[d].createdComm += comm;
                     
                     if (mappedStatus === 'completed') {
-                      MASTER_ORDERS[d].completed += 1;
+                      if (isNewOrder) MASTER_ORDERS[d].completed += 1;
                       MASTER_ORDERS[d].completedComm += comm;
                     }
                     if (mappedStatus === 'cancelled') {
-                      MASTER_ORDERS[d].cancelled += 1;
+                      if (isNewOrder) MASTER_ORDERS[d].cancelled += 1;
                       MASTER_ORDERS[d].cancelledComm += comm;
                     }
                   }
