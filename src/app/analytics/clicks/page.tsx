@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Crosshair, Loader2, TrendingUp, DollarSign, MousePointerClick, ShoppingBag, Tag, BarChart3, ChevronLeft, ChevronRight, Upload, ArrowUpRight } from "lucide-react";
+import { Search, Crosshair, Loader2, TrendingUp, DollarSign, MousePointerClick, ShoppingBag, Tag, BarChart3, ChevronLeft, ChevronRight, Upload, ArrowUpRight, CalendarDays } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
@@ -23,6 +23,13 @@ interface PlatformStat {
   color: string;
 }
 
+interface DailyTagStat {
+  date: string;
+  tag: string;
+  clicks: number;
+  orders: number;
+}
+
 const PLATFORM_COLORS: Record<string, string> = {
   Facebook: "#1877F2",
   Instagram: "#E4405F",
@@ -39,8 +46,10 @@ export default function ClickAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [tagData, setTagData] = useState<TagPerformance[]>([]);
   const [platformData, setPlatformData] = useState<PlatformStat[]>([]);
+  const [dailyData, setDailyData] = useState<DailyTagStat[]>([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [dailyPage, setDailyPage] = useState(1);
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "all">("all");
   const [showUpload, setShowUpload] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -80,6 +89,7 @@ export default function ClickAnalyticsPage() {
       // Aggregate by tag_link
       const tagMap: Record<string, { clicks: number; orders: number; commission: number }> = {};
       const platMap: Record<string, number> = {};
+      const dailyMap: Record<string, { clicks: number; orders: number }> = {};
 
       (clicks || []).forEach((c: any) => {
         const tag = c.tag_link || "Untagged";
@@ -88,6 +98,12 @@ export default function ClickAnalyticsPage() {
 
         const plat = c.technical_source || "Others";
         platMap[plat] = (platMap[plat] || 0) + 1;
+
+        // Daily aggregation
+        const dateStr = c.click_time ? new Date(c.click_time).toISOString().split("T")[0] : "unknown";
+        const dailyKey = `${dateStr}|${tag}`;
+        if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0 };
+        dailyMap[dailyKey].clicks += 1;
       });
 
       // Deduplicate orders by order_id
@@ -97,11 +113,20 @@ export default function ClickAnalyticsPage() {
         if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
 
         const oid = c.order_id ? String(c.order_id) : "";
-        if (oid && !seenOrders.has(oid)) {
+        const isNew = oid && !seenOrders.has(oid);
+        if (isNew) {
           seenOrders.add(oid);
           tagMap[tag].orders += 1;
         }
         tagMap[tag].commission += Number(c.commission) || 0;
+
+        // Daily orders aggregation
+        if (isNew) {
+          const dateStr = c.order_time ? new Date(c.order_time).toISOString().split("T")[0] : "unknown";
+          const dailyKey = `${dateStr}|${tag}`;
+          if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0 };
+          dailyMap[dailyKey].orders += 1;
+        }
       });
 
       const tags: TagPerformance[] = Object.entries(tagMap)
@@ -118,8 +143,18 @@ export default function ClickAnalyticsPage() {
         .map(([platform, clicks]) => ({ platform, clicks, color: PLATFORM_COLORS[platform] || "#64748b" }))
         .sort((a, b) => b.clicks - a.clicks);
 
+      // Build daily breakdown
+      const dailyRows: DailyTagStat[] = Object.entries(dailyMap)
+        .filter(([k]) => !k.startsWith("unknown"))
+        .map(([key, v]) => {
+          const [date, tag] = key.split("|");
+          return { date, tag, clicks: v.clicks, orders: v.orders };
+        })
+        .sort((a, b) => b.date.localeCompare(a.date) || b.clicks - a.clicks);
+
       setTagData(tags);
       setPlatformData(plats);
+      setDailyData(dailyRows);
     } catch (e) {
       console.error(e);
     } finally {
@@ -393,6 +428,113 @@ export default function ClickAnalyticsPage() {
                   )}
                 </div>
               </div>
+
+              {/* DAILY TAG PERFORMANCE */}
+              <div className="bg-slate-900/20 backdrop-blur-2xl border border-white/5 rounded-2xl shadow-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-white/5 bg-slate-950/20 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <CalendarDays className="w-3.5 h-3.5 text-amber-500" />
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Daily Tag Performance</h3>
+                  </div>
+                  <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest">{dailyData.length} records</span>
+                </div>
+
+                {/* DESKTOP DAILY TABLE */}
+                <div className="hidden md:block overflow-x-auto scrollbar-hide">
+                  <table className="w-full text-left">
+                    <thead className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md">
+                      <tr className="border-b border-white/5">
+                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest pl-6">Tanggal</th>
+                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest">Tag Link</th>
+                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Klik Hari Ini</th>
+                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Pesanan Hari Ini</th>
+                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center pr-6">CVR</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-[11px]">
+                      {dailyData.length === 0 ? (
+                        <tr><td colSpan={5} className="py-16 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">Belum ada data harian</td></tr>
+                      ) : dailyData.slice((dailyPage - 1) * 10, dailyPage * 10).map((row, idx) => {
+                        const cvr = row.clicks > 0 ? ((row.orders / row.clicks) * 100) : 0;
+                        const isToday = row.date === new Date().toISOString().split("T")[0];
+                        return (
+                          <tr key={`${row.date}-${row.tag}-${idx}`} className={`hover:bg-white/[0.03] transition-all group ${isToday ? "bg-violet-500/[0.03]" : ""}`}>
+                            <td className="p-4 pl-6">
+                              <div className="flex items-center gap-2">
+                                {isToday && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />}
+                                <span className={`font-bold tracking-tight ${isToday ? "text-amber-400" : "text-slate-400"}`}>{row.date}</span>
+                                {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-widest">Today</span>}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform inline-block">{row.tag}</span>
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className="text-slate-300 font-black bg-violet-500/10 px-3 py-1 rounded-lg">{row.clicks.toLocaleString()}</span>
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className={`font-black px-3 py-1 rounded-lg ${row.orders > 0 ? "text-emerald-400 bg-emerald-500/10" : "text-slate-600 bg-white/5"}`}>{row.orders.toLocaleString()}</span>
+                            </td>
+                            <td className="p-4 text-center pr-6">
+                              <span className={`font-black text-[10px] ${cvr > 5 ? "text-emerald-400" : cvr > 0 ? "text-amber-400" : "text-slate-600"}`}>{cvr.toFixed(1)}%</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE DAILY CARDS */}
+                <div className="md:hidden divide-y divide-white/5">
+                  {dailyData.length === 0 ? (
+                    <div className="py-16 text-center text-slate-600 text-[10px] font-black uppercase">Belum ada data harian</div>
+                  ) : dailyData.slice((dailyPage - 1) * 10, dailyPage * 10).map((row, idx) => {
+                    const cvr = row.clicks > 0 ? ((row.orders / row.clicks) * 100) : 0;
+                    const isToday = row.date === new Date().toISOString().split("T")[0];
+                    return (
+                      <div key={`m-${row.date}-${row.tag}-${idx}`} className={`p-4 space-y-3 ${isToday ? "bg-violet-500/[0.03]" : ""}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {isToday && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+                            <span className={`text-[10px] font-black ${isToday ? "text-amber-400" : "text-slate-500"}`}>{row.date}</span>
+                            {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">TODAY</span>}
+                          </div>
+                          <span className="text-[10px] font-black text-white truncate max-w-[120px]">{row.tag}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-violet-500/5 rounded-xl p-2 flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase">Klik</span>
+                            <span className="text-[11px] font-black text-white">{row.clicks.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase">Pesanan</span>
+                            <span className={`text-[11px] font-black ${row.orders > 0 ? "text-emerald-400" : "text-slate-600"}`}>{row.orders}</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
+                            <span className="text-[7px] font-black text-slate-500 uppercase">CVR</span>
+                            <span className={`text-[11px] font-black ${cvr > 0 ? "text-amber-400" : "text-slate-600"}`}>{cvr.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* DAILY PAGINATION */}
+                {dailyData.length > 10 && (
+                  <div className="p-4 border-t border-white/5 bg-slate-950/40 flex items-center justify-center gap-3">
+                    <button onClick={() => setDailyPage(p => Math.max(1, p - 1))} disabled={dailyPage === 1} className="p-1.5 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Page {dailyPage} of {Math.ceil(dailyData.length / 10)}</span>
+                    <button onClick={() => setDailyPage(p => Math.min(Math.ceil(dailyData.length / 10), p + 1))} disabled={dailyPage === Math.ceil(dailyData.length / 10)} className="p-1.5 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
         </div>
