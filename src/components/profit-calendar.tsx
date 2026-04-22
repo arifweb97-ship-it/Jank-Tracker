@@ -40,14 +40,31 @@ export function ProfitCalendar() {
         const startDate = format(calendarStart, "yyyy-MM-dd");
         const endDate = format(calendarEnd, "yyyy-MM-dd");
 
-        const { data: allRecords } = await supabase
-          .from("daily_records")
-          .select("*")
-          .eq("user_id", user.id)
-          .gte("date", startDate)
-          .lte("date", endDate);
+        let allRecords: any[] = [];
+        let from = 0;
+        const step = 1000;
+        let fetchMore = true;
 
-        if (!allRecords) return;
+        while (fetchMore) {
+          const { data, error } = await supabase
+            .from("daily_records")
+            .select("*")
+            .eq("user_id", user.id)
+            .gte("date", startDate)
+            .lte("date", endDate)
+            .order("date", { ascending: true }) // Ordering helps with predictability
+            .range(from, from + step - 1);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            allRecords = [...allRecords, ...data];
+            from += step;
+            if (data.length < step) fetchMore = false;
+          } else {
+            fetchMore = false;
+          }
+        }
 
         const aggregated: Record<string, DayData> = {};
 
