@@ -23,11 +23,12 @@ interface PlatformStat {
   color: string;
 }
 
-interface DailyTagStat {
+interface DailyGroup {
   date: string;
-  tag: string;
-  clicks: number;
-  orders: number;
+  totalClicks: number;
+  totalOrders: number;
+  totalCommission: number;
+  tags: TagPerformance[];
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -46,7 +47,7 @@ export default function ClickAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [tagData, setTagData] = useState<TagPerformance[]>([]);
   const [platformData, setPlatformData] = useState<PlatformStat[]>([]);
-  const [dailyData, setDailyData] = useState<DailyTagStat[]>([]);
+  const [dailyGroups, setDailyGroups] = useState<DailyGroup[]>([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [dailyPage, setDailyPage] = useState(1);
@@ -89,7 +90,7 @@ export default function ClickAnalyticsPage() {
       // Aggregate by tag_link
       const tagMap: Record<string, { clicks: number; orders: number; commission: number }> = {};
       const platMap: Record<string, number> = {};
-      const dailyMap: Record<string, { clicks: number; orders: number }> = {};
+      const dailyMap: Record<string, { clicks: number; orders: number; commission: number }> = {};
 
       (clicks || []).forEach((c: any) => {
         const tag = c.tag_link || "Untagged";
@@ -102,7 +103,7 @@ export default function ClickAnalyticsPage() {
         // Daily aggregation
         const dateStr = c.click_time ? new Date(c.click_time).toISOString().split("T")[0] : "unknown";
         const dailyKey = `${dateStr}|${tag}`;
-        if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0 };
+        if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
         dailyMap[dailyKey].clicks += 1;
       });
 
@@ -121,12 +122,14 @@ export default function ClickAnalyticsPage() {
         tagMap[tag].commission += Number(c.commission) || 0;
 
         // Daily orders aggregation
+        const dateStr = c.order_time ? new Date(c.order_time).toISOString().split("T")[0] : "unknown";
+        const dailyKey = `${dateStr}|${tag}`;
+        if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
+        
         if (isNew) {
-          const dateStr = c.order_time ? new Date(c.order_time).toISOString().split("T")[0] : "unknown";
-          const dailyKey = `${dateStr}|${tag}`;
-          if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0 };
           dailyMap[dailyKey].orders += 1;
         }
+        dailyMap[dailyKey].commission += Number(c.commission) || 0;
       });
 
       const tags: TagPerformance[] = Object.entries(tagMap)
@@ -143,18 +146,36 @@ export default function ClickAnalyticsPage() {
         .map(([platform, clicks]) => ({ platform, clicks, color: PLATFORM_COLORS[platform] || "#64748b" }))
         .sort((a, b) => b.clicks - a.clicks);
 
-      // Build daily breakdown
-      const dailyRows: DailyTagStat[] = Object.entries(dailyMap)
-        .filter(([k]) => !k.startsWith("unknown"))
-        .map(([key, v]) => {
-          const [date, tag] = key.split("|");
-          return { date, tag, clicks: v.clicks, orders: v.orders };
-        })
-        .sort((a, b) => b.date.localeCompare(a.date) || b.clicks - a.clicks);
+      // Build daily grouped breakdown
+      const groupedByDate: Record<string, DailyGroup> = {};
+      Object.entries(dailyMap).forEach(([key, v]) => {
+        if (key.startsWith("unknown")) return;
+        const [date, tag] = key.split("|");
+        if (!groupedByDate[date]) {
+          groupedByDate[date] = { date, totalClicks: 0, totalOrders: 0, totalCommission: 0, tags: [] };
+        }
+        groupedByDate[date].totalClicks += v.clicks;
+        groupedByDate[date].totalOrders += v.orders;
+        groupedByDate[date].totalCommission += v.commission;
+        groupedByDate[date].tags.push({
+          tag,
+          clicks: v.clicks,
+          orders: v.orders,
+          commission: v.commission,
+          conversionRate: v.clicks > 0 ? (v.orders / v.clicks) * 100 : 0
+        });
+      });
+
+      const groupedDailyData = Object.values(groupedByDate)
+        .sort((a, b) => b.date.localeCompare(a.date)) // Sort descending by date
+        .map(group => {
+          group.tags.sort((a, b) => b.clicks - a.clicks); // Sort tags by clicks
+          return group;
+        });
 
       setTagData(tags);
       setPlatformData(plats);
-      setDailyData(dailyRows);
+      setDailyGroups(groupedDailyData);
     } catch (e) {
       console.error(e);
     } finally {
@@ -162,18 +183,21 @@ export default function ClickAnalyticsPage() {
     }
   }
 
-  const filteredData = useMemo(() => {
-    setCurrentPage(1);
-    if (!search) return tagData;
-    return tagData.filter(d => d.tag.toLowerCase().includes(search.toLowerCase()));
-  }, [tagData, search]);
+  const filteredDailyGroups = useMemo(() => {
+    setDailyPage(1);
+    if (!search) return dailyGroups;
+    return dailyGroups.map(group => ({
+      ...group,
+      tags: group.tags.filter(t => t.tag.toLowerCase().includes(search.toLowerCase()))
+    })).filter(group => group.tags.length > 0);
+  }, [dailyGroups, search]);
 
-  const itemsPerPage = 8;
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const paginatedData = useMemo(() => {
-    const s = (currentPage - 1) * itemsPerPage;
-    return filteredData.slice(s, s + itemsPerPage);
-  }, [filteredData, currentPage]);
+  const itemsPerPage = 5; // Show 5 days per page
+  const totalPages = Math.ceil(filteredDailyGroups.length / itemsPerPage);
+  const paginatedDailyData = useMemo(() => {
+    const s = (dailyPage - 1) * itemsPerPage;
+    return filteredDailyGroups.slice(s, s + itemsPerPage);
+  }, [filteredDailyGroups, dailyPage]);
 
   const fmt = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
 
@@ -258,279 +282,139 @@ export default function ClickAnalyticsPage() {
                 ))}
               </div>
 
-              {/* CHARTS + TABLE */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* PLATFORM CHART */}
-                <div className="lg:col-span-1 flex flex-col gap-6">
-                  <div className="bg-slate-900/20 backdrop-blur-2xl border border-white/5 rounded-2xl p-5 shadow-2xl h-[380px] flex flex-col relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-violet-500/50 to-transparent opacity-50" />
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <BarChart3 className="w-4 h-4 text-violet-500" />
-                        <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Platform Source</h3>
-                      </div>
-                    </div>
-                    <div className="flex-1 w-full">
-                      {platformData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={platformData.slice(0, 6)} layout="vertical" margin={{ left: -10, right: 30 }}>
-                            <XAxis type="number" hide />
-                            <YAxis dataKey="platform" type="category" stroke="#64748b" fontSize={9} fontWeight="bold" width={70} />
-                            <Tooltip
-                              cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                              contentStyle={{ backgroundColor: "rgba(2,6,23,0.95)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "16px", padding: "8px" }}
-                              itemStyle={{ color: "#8b5cf6", fontWeight: "bold", fontSize: "9px", textTransform: "uppercase" }}
-                              labelStyle={{ display: "none" }}
-                              formatter={(v: any) => `${Number(v).toLocaleString()} clicks`}
-                            />
-                            <Bar dataKey="clicks" barSize={14} radius={[0, 6, 6, 0]}>
-                              {platformData.slice(0, 6).map((e, i) => (
-                                <Cell key={i} fill={e.color} fillOpacity={0.8} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center">
-                          <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">No click data yet</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CONVERSION INSIGHT */}
-                  <div className="bg-violet-500/5 border border-violet-500/10 rounded-2xl p-4 flex items-center justify-between group cursor-help transition-all hover:bg-violet-500/10">
-                    <div className="flex flex-col">
-                      <span className="text-[12px] font-black text-white tracking-tighter">Avg Conversion</span>
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
-                        {totalClicks > 0 ? ((totalOrders / totalClicks) * 100).toFixed(2) : "0.00"}% click-to-order
-                      </span>
-                    </div>
-                    <TrendingUp className="w-5 h-5 text-violet-500 animate-pulse" />
-                  </div>
+              {/* DAY-BY-DAY TAG LINK FEED */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 px-2">
+                  <CalendarDays className="w-5 h-5 text-violet-500" />
+                  <h3 className="text-sm font-black text-white uppercase tracking-[0.2em]">Daily Traffic Feed</h3>
                 </div>
 
-                {/* TAG LEADERBOARD TABLE */}
-                <div className="lg:col-span-2 flex flex-col">
-                  {/* DESKTOP TABLE */}
-                  <div className="hidden md:flex flex-col bg-slate-900/20 backdrop-blur-2xl border border-white/5 rounded-2xl shadow-2xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-white/5 bg-slate-950/20 flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <Crosshair className="w-3.5 h-3.5 text-violet-500" />
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Tag Link Leaderboard</h3>
-                      </div>
-                      <span className="text-[8px] font-black text-violet-500 bg-violet-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest">{filteredData.length} tags</span>
-                    </div>
-
-                    <div className="overflow-x-auto scrollbar-hide">
-                      <table className="w-full text-left">
-                        <thead className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md">
-                          <tr className="border-b border-white/5">
-                            <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest pl-6 w-8">#</th>
-                            <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest">Tag Link</th>
-                            <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Clicks</th>
-                            <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Orders</th>
-                            <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">CVR</th>
-                            <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-right pr-6">Commission</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5 text-[11px]">
-                          {paginatedData.length === 0 ? (
-                            <tr><td colSpan={6} className="py-20 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">No data available. Upload click CSV to get started.</td></tr>
-                          ) : paginatedData.map((row, idx) => (
-                            <tr key={row.tag} className="hover:bg-white/[0.03] transition-all group">
-                              <td className="p-4 pl-6 text-[10px] font-black text-slate-600">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
-                              <td className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-1.5 h-1.5 rounded-full ${row.clicks > (totalClicks / Math.max(tagData.length, 1)) ? "bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" : "bg-slate-700"}`} />
-                                  <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform">{row.tag}</span>
-                                </div>
-                              </td>
-                              <td className="p-4 text-center">
-                                <span className="text-slate-400 font-bold bg-violet-500/5 px-2.5 py-1 rounded-lg group-hover:text-violet-400 transition-colors">{row.clicks.toLocaleString()}</span>
-                              </td>
-                              <td className="p-4 text-center">
-                                <span className="text-slate-400 font-bold bg-white/5 px-2.5 py-1 rounded-lg group-hover:text-blue-400 transition-colors">{row.orders.toLocaleString()}</span>
-                              </td>
-                              <td className="p-4 text-center">
-                                <span className={`font-black text-[10px] px-2 py-1 rounded-lg ${row.conversionRate > 5 ? "text-emerald-400 bg-emerald-500/10" : row.conversionRate > 0 ? "text-amber-400 bg-amber-500/10" : "text-slate-600 bg-white/5"}`}>
-                                  {row.conversionRate.toFixed(1)}%
-                                </span>
-                              </td>
-                              <td className="p-4 text-right pr-6">
-                                <span className="font-black text-emerald-400 text-xs tracking-tight">{fmt(row.commission)}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                {paginatedDailyData.length === 0 ? (
+                  <div className="py-20 text-center bg-slate-900/20 rounded-2xl border border-white/5">
+                    <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest">No daily data available. Upload click CSV to get started.</p>
                   </div>
-
-                  {/* MOBILE CARD VIEW */}
-                  <div className="md:hidden space-y-3">
-                    <div className="flex items-center gap-2 px-2 mb-2">
-                      <Crosshair className="w-3 h-3 text-violet-500" />
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Tag Leaderboard</span>
-                    </div>
-                    {paginatedData.length === 0 ? (
-                      <div className="py-16 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest bg-slate-900/20 rounded-2xl border border-white/5">Upload click CSV to get started</div>
-                    ) : paginatedData.map((row, idx) => (
-                      <div key={row.tag} className="bg-slate-900/40 border border-white/5 rounded-2xl p-4 space-y-3 active:scale-[0.98] transition-all">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-violet-500 bg-violet-500/10 w-6 h-6 rounded-lg flex items-center justify-center">{(currentPage - 1) * itemsPerPage + idx + 1}</span>
-                            <span className="text-[11px] font-black text-white truncate max-w-[140px]">{row.tag}</span>
-                          </div>
-                          <span className="text-xs font-black text-emerald-400">{fmt(row.commission)}</span>
+                ) : paginatedDailyData.map((dayGroup, idx) => {
+                  const isToday = dayGroup.date === new Date().toISOString().split("T")[0];
+                  return (
+                    <div key={dayGroup.date} className={`flex flex-col bg-slate-900/40 backdrop-blur-2xl border ${isToday ? "border-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.1)]" : "border-white/5"} rounded-2xl overflow-hidden transition-all duration-500`}>
+                      
+                      {/* DAY HEADER */}
+                      <div className="p-5 md:p-6 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          {isToday && <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse" />}
+                          <span className={`text-lg font-black tracking-tighter ${isToday ? "text-amber-400" : "text-white"}`}>{dayGroup.date}</span>
+                          {isToday && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded uppercase tracking-widest">Today</span>}
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Clicks</span>
-                            <span className="text-[10px] font-black text-white">{row.clicks.toLocaleString()}</span>
+                        
+                        <div className="flex items-center gap-6">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Clicks</span>
+                            <span className="text-sm font-black text-white">{dayGroup.totalClicks.toLocaleString()}</span>
                           </div>
-                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Orders</span>
-                            <span className="text-[10px] font-black text-white">{row.orders.toLocaleString()}</span>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Orders</span>
+                            <span className="text-sm font-black text-blue-400">{dayGroup.totalOrders.toLocaleString()}</span>
                           </div>
-                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">CVR</span>
-                            <span className={`text-[10px] font-black ${row.conversionRate > 5 ? "text-emerald-400" : "text-amber-400"}`}>{row.conversionRate.toFixed(1)}%</span>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Commission</span>
+                            <span className="text-sm font-black text-emerald-400">{fmt(dayGroup.totalCommission)}</span>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
 
-                  {/* PAGINATION */}
-                  {totalPages > 1 && (
-                    <div className="flex flex-col items-center gap-2 bg-slate-900/40 border border-white/10 py-3 px-6 rounded-xl shadow-xl mt-4">
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
-                          <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <div className="flex items-center gap-1.5">
-                          {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                            const page = i + 1;
+                      {/* TAG LIST FOR THE DAY */}
+                      <div className="p-0">
+                        {/* Desktop Table Header */}
+                        <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-slate-900/50">
+                          <div className="col-span-1 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Rank</div>
+                          <div className="col-span-4 text-[9px] font-black text-slate-600 uppercase tracking-widest">Tag Link</div>
+                          <div className="col-span-3 text-[9px] font-black text-slate-600 uppercase tracking-widest">Traffic Share</div>
+                          <div className="col-span-1 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Orders</div>
+                          <div className="col-span-1 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">CVR</div>
+                          <div className="col-span-2 text-[9px] font-black text-slate-600 uppercase tracking-widest text-right pr-4">Commission</div>
+                        </div>
+
+                        {/* Tag Rows */}
+                        <div className="divide-y divide-white/5">
+                          {dayGroup.tags.map((tagObj, tIdx) => {
+                            const share = dayGroup.totalClicks > 0 ? (tagObj.clicks / dayGroup.totalClicks) * 100 : 0;
                             return (
-                              <button key={page} onClick={() => setCurrentPage(page)} className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all border ${currentPage === page ? "bg-violet-600 border-transparent text-white shadow-lg" : "bg-white/5 border-white/5 text-slate-500 hover:text-white"}`}>
-                                {page}
-                              </button>
+                              <div key={`${dayGroup.date}-${tagObj.tag}`} className="group hover:bg-white/[0.02] transition-colors p-4 md:grid md:grid-cols-12 md:gap-4 md:items-center flex flex-col gap-3">
+                                
+                                {/* Rank & Tag (Mobile + Desktop) */}
+                                <div className="md:col-span-5 flex items-center gap-3">
+                                  <div className="md:w-full md:grid md:grid-cols-5 md:gap-4 md:items-center flex items-center gap-3 w-full">
+                                    <div className="md:col-span-1 flex justify-center shrink-0">
+                                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${tIdx === 0 ? "bg-amber-500/20 text-amber-500" : tIdx === 1 ? "bg-slate-300/20 text-slate-300" : tIdx === 2 ? "bg-amber-700/20 text-amber-600" : "bg-slate-800 text-slate-500"}`}>
+                                        {tIdx + 1}
+                                      </span>
+                                    </div>
+                                    <div className="md:col-span-4 flex-1 min-w-0">
+                                      <span className="text-[11px] font-bold text-white truncate block">{tagObj.tag}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Traffic Share Bar */}
+                                <div className="md:col-span-3 flex flex-col justify-center gap-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-violet-400">{tagObj.clicks.toLocaleString()} clicks</span>
+                                    <span className="text-[9px] font-black text-slate-500">{share.toFixed(1)}%</span>
+                                  </div>
+                                  <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                                    <div className="h-full bg-violet-500 transition-all duration-500" style={{ width: `${share}%` }} />
+                                  </div>
+                                </div>
+
+                                {/* Metrics Desktop / Mobile Grid */}
+                                <div className="md:col-span-4 md:grid md:grid-cols-4 md:gap-4 flex items-center justify-between border-t border-white/5 md:border-t-0 pt-3 md:pt-0 mt-1 md:mt-0">
+                                  <div className="md:col-span-1 flex flex-col md:items-center">
+                                    <span className="md:hidden text-[7px] font-black text-slate-500 uppercase tracking-widest">Orders</span>
+                                    <span className="text-[11px] font-black text-white md:text-blue-400">{tagObj.orders}</span>
+                                  </div>
+                                  <div className="md:col-span-1 flex flex-col md:items-center">
+                                    <span className="md:hidden text-[7px] font-black text-slate-500 uppercase tracking-widest">CVR</span>
+                                    <span className={`text-[11px] font-black ${tagObj.conversionRate > 5 ? "text-emerald-400" : tagObj.conversionRate > 0 ? "text-amber-400" : "text-slate-500"}`}>
+                                      {tagObj.conversionRate.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                  <div className="md:col-span-2 flex flex-col items-end md:pr-4">
+                                    <span className="md:hidden text-[7px] font-black text-slate-500 uppercase tracking-widest">Comm</span>
+                                    <span className="text-[11px] font-black text-emerald-400">{fmt(tagObj.commission)}</span>
+                                  </div>
+                                </div>
+
+                              </div>
                             );
                           })}
-                          {totalPages > 5 && <span className="text-slate-600 text-[10px] font-black px-1">...{totalPages}</span>}
                         </div>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                  );
+                })}
 
-              {/* DAILY TAG PERFORMANCE */}
-              <div className="bg-slate-900/20 backdrop-blur-2xl border border-white/5 rounded-2xl shadow-2xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/5 bg-slate-950/20 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <CalendarDays className="w-3.5 h-3.5 text-amber-500" />
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Daily Tag Performance</h3>
-                  </div>
-                  <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest">{dailyData.length} records</span>
-                </div>
-
-                {/* DESKTOP DAILY TABLE */}
-                <div className="hidden md:block overflow-x-auto scrollbar-hide">
-                  <table className="w-full text-left">
-                    <thead className="sticky top-0 z-30 bg-slate-950/80 backdrop-blur-md">
-                      <tr className="border-b border-white/5">
-                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest pl-6">Tanggal</th>
-                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest">Tag Link</th>
-                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Klik Hari Ini</th>
-                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center">Pesanan Hari Ini</th>
-                        <th className="p-4 text-[8px] font-black text-slate-600 uppercase tracking-widest text-center pr-6">CVR</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5 text-[11px]">
-                      {dailyData.length === 0 ? (
-                        <tr><td colSpan={5} className="py-16 text-center text-slate-600 text-[10px] font-black uppercase tracking-widest">Belum ada data harian</td></tr>
-                      ) : dailyData.slice((dailyPage - 1) * 10, dailyPage * 10).map((row, idx) => {
-                        const cvr = row.clicks > 0 ? ((row.orders / row.clicks) * 100) : 0;
-                        const isToday = row.date === new Date().toISOString().split("T")[0];
-                        return (
-                          <tr key={`${row.date}-${row.tag}-${idx}`} className={`hover:bg-white/[0.03] transition-all group ${isToday ? "bg-violet-500/[0.03]" : ""}`}>
-                            <td className="p-4 pl-6">
-                              <div className="flex items-center gap-2">
-                                {isToday && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />}
-                                <span className={`font-bold tracking-tight ${isToday ? "text-amber-400" : "text-slate-400"}`}>{row.date}</span>
-                                {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-widest">Today</span>}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span className="font-bold text-white tracking-tight group-hover:translate-x-1 transition-transform inline-block">{row.tag}</span>
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className="text-slate-300 font-black bg-violet-500/10 px-3 py-1 rounded-lg">{row.clicks.toLocaleString()}</span>
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className={`font-black px-3 py-1 rounded-lg ${row.orders > 0 ? "text-emerald-400 bg-emerald-500/10" : "text-slate-600 bg-white/5"}`}>{row.orders.toLocaleString()}</span>
-                            </td>
-                            <td className="p-4 text-center pr-6">
-                              <span className={`font-black text-[10px] ${cvr > 5 ? "text-emerald-400" : cvr > 0 ? "text-amber-400" : "text-slate-600"}`}>{cvr.toFixed(1)}%</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* MOBILE DAILY CARDS */}
-                <div className="md:hidden divide-y divide-white/5">
-                  {dailyData.length === 0 ? (
-                    <div className="py-16 text-center text-slate-600 text-[10px] font-black uppercase">Belum ada data harian</div>
-                  ) : dailyData.slice((dailyPage - 1) * 10, dailyPage * 10).map((row, idx) => {
-                    const cvr = row.clicks > 0 ? ((row.orders / row.clicks) * 100) : 0;
-                    const isToday = row.date === new Date().toISOString().split("T")[0];
-                    return (
-                      <div key={`m-${row.date}-${row.tag}-${idx}`} className={`p-4 space-y-3 ${isToday ? "bg-violet-500/[0.03]" : ""}`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {isToday && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
-                            <span className={`text-[10px] font-black ${isToday ? "text-amber-400" : "text-slate-500"}`}>{row.date}</span>
-                            {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">TODAY</span>}
-                          </div>
-                          <span className="text-[10px] font-black text-white truncate max-w-[120px]">{row.tag}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-violet-500/5 rounded-xl p-2 flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase">Klik</span>
-                            <span className="text-[11px] font-black text-white">{row.clicks.toLocaleString()}</span>
-                          </div>
-                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase">Pesanan</span>
-                            <span className={`text-[11px] font-black ${row.orders > 0 ? "text-emerald-400" : "text-slate-600"}`}>{row.orders}</span>
-                          </div>
-                          <div className="bg-white/5 rounded-xl p-2 flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase">CVR</span>
-                            <span className={`text-[11px] font-black ${cvr > 0 ? "text-amber-400" : "text-slate-600"}`}>{cvr.toFixed(1)}%</span>
-                          </div>
-                        </div>
+                {/* PAGINATION */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col items-center gap-2 bg-slate-900/40 border border-white/10 py-3 px-6 rounded-xl shadow-xl mt-6 w-fit mx-auto">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setDailyPage(p => Math.max(1, p - 1))} disabled={dailyPage === 1} className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                          const page = i + 1;
+                          return (
+                            <button key={page} onClick={() => setDailyPage(page)} className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all border ${dailyPage === page ? "bg-violet-600 border-transparent text-white shadow-lg" : "bg-white/5 border-white/5 text-slate-500 hover:text-white"}`}>
+                              {page}
+                            </button>
+                          );
+                        })}
+                        {totalPages > 5 && <span className="text-slate-600 text-[10px] font-black px-1">...{totalPages}</span>}
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* DAILY PAGINATION */}
-                {dailyData.length > 10 && (
-                  <div className="p-4 border-t border-white/5 bg-slate-950/40 flex items-center justify-center gap-3">
-                    <button onClick={() => setDailyPage(p => Math.max(1, p - 1))} disabled={dailyPage === 1} className="p-1.5 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Page {dailyPage} of {Math.ceil(dailyData.length / 10)}</span>
-                    <button onClick={() => setDailyPage(p => Math.min(Math.ceil(dailyData.length / 10), p + 1))} disabled={dailyPage === Math.ceil(dailyData.length / 10)} className="p-1.5 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                      <button onClick={() => setDailyPage(p => Math.min(totalPages, p + 1))} disabled={dailyPage === totalPages} className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
