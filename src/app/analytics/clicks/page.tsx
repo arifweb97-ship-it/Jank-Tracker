@@ -53,7 +53,7 @@ export default function ClickAnalyticsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [dailyPage, setDailyPage] = useState(1);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const [dateRange, setDateRange] = useState<"7d" | "30d" | "all">("all");
+  const [dateRange, setDateRange] = useState<"7d" | "30d" | "all">("7d");
   const [showUpload, setShowUpload] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -79,55 +79,59 @@ export default function ClickAnalyticsPage() {
         dateFilter = d.toISOString();
       }
 
-      // Fetch clicks from shopee_clicks (Paginated to bypass 1000 row limit)
+      // Fetch clicks from shopee_clicks (Parallel Paginated to bypass 1000 row limit)
+      let clickCountQuery = supabase
+        .from("shopee_clicks")
+        .select('*', { count: 'exact', head: true })
+        .eq("user_id", user!.id);
+      
+      if (dateFilter) clickCountQuery = clickCountQuery.gte("click_time", dateFilter);
+      const { count: clickCount } = await clickCountQuery;
+      
       let allClicks: any[] = [];
-      let clickHasMore = true;
-      let clickFrom = 0;
-      const pageSize = 1000;
-
-      while (clickHasMore) {
-        let clickQuery = supabase
-          .from("shopee_clicks")
-          .select("tag_link, technical_source, click_time")
-          .eq("user_id", user!.id)
-          .range(clickFrom, clickFrom + pageSize - 1);
-        
-        if (dateFilter) clickQuery = clickQuery.gte("click_time", dateFilter);
-        
-        const { data } = await clickQuery;
-        if (data && data.length > 0) {
-          allClicks = [...allClicks, ...data];
-          if (data.length < pageSize) clickHasMore = false;
-          else clickFrom += pageSize;
-        } else {
-          clickHasMore = false;
+      if (clickCount && clickCount > 0) {
+        const pageSize = 1000;
+        const promises = [];
+        for (let i = 0; i < clickCount; i += pageSize) {
+          let query = supabase
+            .from("shopee_clicks")
+            .select("tag_link, technical_source, click_time")
+            .eq("user_id", user!.id)
+            .range(i, i + pageSize - 1);
+          if (dateFilter) query = query.gte("click_time", dateFilter);
+          promises.push(query);
         }
+        const results = await Promise.all(promises);
+        allClicks = results.flatMap(res => res.data || []);
       }
       const clicks = allClicks;
 
-      // Fetch commissions from daily_records (Paginated)
-      let allComms: any[] = [];
-      let commHasMore = true;
-      let commFrom = 0;
-
-      while (commHasMore) {
-        let commQuery = supabase
-          .from("daily_records")
-          .select("date, source, commission, orders")
-          .eq("user_id", user!.id)
-          .eq("category", "shopee_comm")
-          .range(commFrom, commFrom + pageSize - 1);
+      // Fetch commissions from daily_records (Parallel Paginated)
+      let commCountQuery = supabase
+        .from("daily_records")
+        .select('*', { count: 'exact', head: true })
+        .eq("user_id", user!.id)
+        .eq("category", "shopee_comm");
         
-        if (dateFilter) commQuery = commQuery.gte("date", dateFilter);
+      if (dateFilter) commCountQuery = commCountQuery.gte("date", dateFilter);
+      const { count: commCount } = await commCountQuery;
 
-        const { data } = await commQuery;
-        if (data && data.length > 0) {
-          allComms = [...allComms, ...data];
-          if (data.length < pageSize) commHasMore = false;
-          else commFrom += pageSize;
-        } else {
-          commHasMore = false;
+      let allComms: any[] = [];
+      if (commCount && commCount > 0) {
+        const pageSize = 1000;
+        const promises = [];
+        for (let i = 0; i < commCount; i += pageSize) {
+          let query = supabase
+            .from("daily_records")
+            .select("date, source, commission, orders")
+            .eq("user_id", user!.id)
+            .eq("category", "shopee_comm")
+            .range(i, i + pageSize - 1);
+          if (dateFilter) query = query.gte("date", dateFilter);
+          promises.push(query);
         }
+        const results = await Promise.all(promises);
+        allComms = results.flatMap(res => res.data || []);
       }
       const comms = allComms;
 
