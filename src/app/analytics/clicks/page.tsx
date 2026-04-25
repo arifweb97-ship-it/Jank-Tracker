@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Crosshair, Loader2, TrendingUp, DollarSign, MousePointerClick, ShoppingBag, Tag, BarChart3, ChevronLeft, ChevronRight, Upload, ArrowUpRight, CalendarDays } from "lucide-react";
+import { Search, Crosshair, Loader2, TrendingUp, DollarSign, MousePointerClick, ShoppingBag, Tag, BarChart3, ChevronLeft, ChevronRight, Upload, ArrowUpRight, CalendarDays, ChevronDown } from "lucide-react";
 import { TopBar } from "@/components/top-bar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from "recharts";
 import { ProtectedRoute } from "@/components/protected-route";
 import { ClickUploadModal } from "@/components/click-upload-modal";
+import { UploadTutorial } from "@/components/upload-tutorial";
 
 interface TagPerformance {
   tag: string;
@@ -51,6 +52,7 @@ export default function ClickAnalyticsPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [dailyPage, setDailyPage] = useState(1);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "all">("all");
   const [showUpload, setShowUpload] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -164,7 +166,7 @@ export default function ClickAnalyticsPage() {
       const groupedDailyData = Object.values(groupedByDate)
         .sort((a, b) => b.date.localeCompare(a.date)) // Sort descending by date
         .map(group => {
-          group.tags.sort((a, b) => b.clicks - a.clicks); // Sort tags by clicks
+          group.tags.sort((a, b) => b.commission - a.commission || b.clicks - a.clicks); // Sort tags by commission first, then clicks
           return group;
         });
 
@@ -194,6 +196,15 @@ export default function ClickAnalyticsPage() {
     return filteredDailyGroups.slice(s, s + itemsPerPage);
   }, [filteredDailyGroups, dailyPage]);
 
+  const toggleDate = (date: string) => {
+    setExpandedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
+
   const fmt = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
 
   return (
@@ -203,12 +214,15 @@ export default function ClickAnalyticsPage() {
           title="Click Analytics"
           description="Tag link performance & conversion intelligence."
           action={
-            <button
-              onClick={() => setShowUpload(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-violet-500/20 active:scale-95"
-            >
-              <Upload className="w-3.5 h-3.5" /> Upload Click Data
-            </button>
+            <div className="flex items-center gap-2 md:gap-3">
+              <UploadTutorial type="clicks" />
+              <button
+                onClick={() => setShowUpload(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-violet-500/20 active:scale-95"
+              >
+                <Upload className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Upload Click Data</span><span className="sm:hidden">Upload</span>
+              </button>
+            </div>
           }
         />
 
@@ -294,7 +308,10 @@ export default function ClickAnalyticsPage() {
                     <div key={dayGroup.date} className={`flex flex-col bg-slate-900/40 backdrop-blur-2xl border ${isToday ? "border-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.1)]" : "border-white/5"} rounded-2xl overflow-hidden transition-all duration-500`}>
                       
                       {/* DAY HEADER */}
-                      <div className="p-5 md:p-6 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div 
+                        onClick={() => toggleDate(dayGroup.date)}
+                        className="p-5 md:p-6 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors group select-none"
+                      >
                         <div className="flex items-center gap-3">
                           {isToday && <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse" />}
                           <span className={`text-lg font-black tracking-tighter ${isToday ? "text-amber-400" : "text-white"}`}>{dayGroup.date}</span>
@@ -314,12 +331,16 @@ export default function ClickAnalyticsPage() {
                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Commission</span>
                             <span className="text-sm font-black text-emerald-400">{fmt(dayGroup.totalCommission)}</span>
                           </div>
+                          <div className="pl-4 border-l border-white/10 flex items-center justify-center">
+                            <ChevronDown className={`w-5 h-5 text-slate-500 group-hover:text-violet-400 transition-all duration-300 ${expandedDates.has(dayGroup.date) ? "rotate-180 text-violet-500" : ""}`} />
+                          </div>
                         </div>
                       </div>
 
                       {/* TAG LIST FOR THE DAY */}
-                      <div className="p-0">
-                        {/* Desktop Table Header */}
+                      {expandedDates.has(dayGroup.date) && (
+                        <div className="p-0 animate-in slide-in-from-top-2 fade-in duration-300">
+                          {/* Desktop Table Header */}
                         <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-white/5 bg-slate-900/50">
                           <div className="col-span-1 text-[9px] font-black text-slate-600 uppercase tracking-widest text-center">Rank</div>
                           <div className="col-span-4 text-[9px] font-black text-slate-600 uppercase tracking-widest">Tag Link</div>
@@ -384,9 +405,10 @@ export default function ClickAnalyticsPage() {
                           })}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    )}
+                  </div>
+                );
+              })}
 
                 {/* PAGINATION */}
                 {totalPages > 1 && (

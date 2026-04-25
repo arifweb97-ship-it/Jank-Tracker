@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
 import { OrderImportModal } from "@/components/order-import-modal";
+import { UploadTutorial } from "@/components/upload-tutorial";
 
 interface OrderMetric {
   date: string;
@@ -111,6 +112,7 @@ export default function OrderReportPage() {
           description="Detailed order status analytics & fulfillment monitoring."
           action={
             <div className="flex items-center gap-2 md:gap-3">
+              <UploadTutorial type="orders" />
               <button 
                 onClick={() => setIsUploadOpen(true)}
                 className="bg-[#C50337] hover:bg-[#a00028] text-white px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-[#C50337]/20 flex items-center gap-2 transition-all active:scale-95"
