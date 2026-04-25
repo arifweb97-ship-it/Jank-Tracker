@@ -49,7 +49,6 @@ export default function ClickAnalyticsPage() {
   const [tagData, setTagData] = useState<TagPerformance[]>([]);
   const [platformData, setPlatformData] = useState<PlatformStat[]>([]);
   const [dailyGroups, setDailyGroups] = useState<DailyGroup[]>([]);
-  const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [dailyPage, setDailyPage] = useState(1);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
@@ -267,19 +266,7 @@ export default function ClickAnalyticsPage() {
         />
 
         <div className="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          {/* SEARCH */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
-            <div className="relative group w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-violet-500 transition-all" />
-              <input
-                type="text"
-                placeholder="Search tag link..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="bg-slate-900/50 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-[11px] text-white focus:outline-none focus:border-violet-500/50 w-64 transition-all font-bold placeholder:text-slate-600"
-              />
-            </div>
-          </div>
+
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 bg-slate-950/20 backdrop-blur-3xl rounded-3xl border border-white/5">
