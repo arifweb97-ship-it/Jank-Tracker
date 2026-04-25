@@ -53,7 +53,6 @@ export default function ClickAnalyticsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [dailyPage, setDailyPage] = useState(1);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
-  const [dateRange, setDateRange] = useState<"7d" | "30d" | "all">("7d");
   const [showUpload, setShowUpload] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -64,20 +63,12 @@ export default function ClickAnalyticsPage() {
   useEffect(() => {
     if (!user?.id) return;
     fetchData();
-  }, [user, dateRange, refreshKey]);
+  }, [user, refreshKey]);
 
   async function fetchData() {
     setLoading(true);
     try {
-      // Build date filter
-      let dateFilter: string | null = null;
-      if (dateRange === "7d") {
-        const d = new Date(); d.setDate(d.getDate() - 7);
-        dateFilter = d.toISOString();
-      } else if (dateRange === "30d") {
-        const d = new Date(); d.setDate(d.getDate() - 30);
-        dateFilter = d.toISOString();
-      }
+      let dateFilter: string | null = null; // Always fetch all
 
       // Fetch clicks from shopee_clicks (Parallel Paginated to bypass 1000 row limit)
       let clickCountQuery = supabase
@@ -280,24 +271,9 @@ export default function ClickAnalyticsPage() {
         />
 
         <div className="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          {/* DATE RANGE + SEARCH */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-900/60 border border-white/5 rounded-xl">
-              {(["7d", "30d", "all"] as const).map(r => (
-                <button
-                  key={r}
-                  onClick={() => setDateRange(r)}
-                  className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                    dateRange === r
-                      ? "bg-violet-600 text-white shadow-lg shadow-violet-500/30"
-                      : "text-slate-500 hover:text-white"
-                  }`}
-                >
-                  {r === "7d" ? "7 Hari" : r === "30d" ? "30 Hari" : "Semua"}
-                </button>
-              ))}
-            </div>
-            <div className="relative group">
+          {/* SEARCH */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-end gap-4">
+            <div className="relative group w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-violet-500 transition-all" />
               <input
                 type="text"
