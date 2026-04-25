@@ -82,9 +82,9 @@ export default function ClickAnalyticsPage() {
       if (dateFilter) clickQuery = clickQuery.gte("click_time", dateFilter);
       const { data: clicks } = await clickQuery;
 
-      // Fetch commissions from shopee_commissions
-      let commQuery = supabase.from("shopee_commissions").select("tag_link, commission, order_id, order_time").eq("user_id", user!.id);
-      if (dateFilter) commQuery = commQuery.gte("order_time", dateFilter);
+      // Fetch commissions from daily_records
+      let commQuery = supabase.from("daily_records").select("date, source, commission, orders").eq("user_id", user!.id).eq("category", "shopee_comm");
+      if (dateFilter) commQuery = commQuery.gte("date", dateFilter);
       const { data: comms } = await commQuery;
 
       // Aggregate by tag_link
@@ -107,28 +107,23 @@ export default function ClickAnalyticsPage() {
         dailyMap[dailyKey].clicks += 1;
       });
 
-      // Deduplicate orders by order_id
-      const seenOrders = new Set<string>();
+      // Process aggregated commission/orders from daily_records
       (comms || []).forEach((c: any) => {
-        const tag = c.tag_link || "Untagged";
-        if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
-
-        const oid = c.order_id ? String(c.order_id) : "";
-        const isNew = oid && !seenOrders.has(oid);
-        if (isNew) {
-          seenOrders.add(oid);
-          tagMap[tag].orders += 1;
+        let tag = "Untagged";
+        if (c.source && c.source.includes(" >>> ")) {
+          tag = c.source.split(" >>> ")[1];
         }
+
+        if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
+        tagMap[tag].orders += c.orders || 0;
         tagMap[tag].commission += Number(c.commission) || 0;
 
         // Daily orders aggregation
-        const dateStr = c.order_time ? new Date(c.order_time).toISOString().split("T")[0] : "unknown";
+        const dateStr = c.date ? c.date.split("T")[0] : "unknown";
         const dailyKey = `${dateStr}|${tag}`;
         if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
         
-        if (isNew) {
-          dailyMap[dailyKey].orders += 1;
-        }
+        dailyMap[dailyKey].orders += c.orders || 0;
         dailyMap[dailyKey].commission += Number(c.commission) || 0;
       });
 
