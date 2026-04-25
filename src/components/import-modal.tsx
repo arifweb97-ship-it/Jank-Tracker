@@ -215,8 +215,13 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                     }
                   });
                 } else {
-                  const isComm = h.includes("order") || h.includes("commission") || h.includes("komisi") || h.includes("estimasi");
-                  if (isComm) {
+                  // 🛡️ Skip Order Status CSVs to prevent them from inflating commissions.
+                  // Order CSVs must be uploaded in the dedicated Order Reports page.
+                  const isOrderReport = h.includes("order status") || h.includes("status pesanan") || h.includes("waktu pesanan");
+                  
+                  if (!isOrderReport) {
+                    const isComm = h.includes("order") || h.includes("commission") || h.includes("komisi") || h.includes("estimasi");
+                    if (isComm) {
                     const hasItemComm = getAliasValue(data[0] || {}, ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi", "Estimated Commission"]) !== null;
                     data.forEach((row: any) => {
                       const d = cleanDate(getAliasValue(row, DATE_ALIASES));
@@ -290,6 +295,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                       }
                     });
                   }
+                } // End of if (!isOrderReport)
                 }
                 resolve(true);
               } catch (innerErr) {

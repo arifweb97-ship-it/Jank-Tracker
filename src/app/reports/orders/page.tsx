@@ -56,6 +56,7 @@ export default function OrderReportPage() {
           });
 
           const formatted = Object.values(map)
+            .filter(d => d.created > 0 || d.completed > 0 || d.cancelled > 0)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
           setData(formatted);
