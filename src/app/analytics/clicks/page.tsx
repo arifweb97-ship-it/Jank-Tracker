@@ -94,8 +94,15 @@ export default function ClickAnalyticsPage() {
       const platMap: Record<string, number> = {};
       const dailyMap: Record<string, { clicks: number; orders: number; commission: number }> = {};
 
+      const normalizeTag = (val: string | null): string => {
+        if (!val) return "Untagged";
+        let str = String(val).trim();
+        str = str.replace(/[^a-zA-Z0-9]+$/, '');
+        return str.replace(/\s+/g, ' ').trim() || "Untagged";
+      };
+
       (clicks || []).forEach((c: any) => {
-        const tag = c.tag_link || "Untagged";
+        const tag = normalizeTag(c.tag_link);
         if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
         tagMap[tag].clicks += 1;
 
@@ -113,7 +120,7 @@ export default function ClickAnalyticsPage() {
       (comms || []).forEach((c: any) => {
         let tag = "Untagged";
         if (c.source && c.source.includes(" >>> ")) {
-          tag = c.source.split(" >>> ")[1];
+          tag = normalizeTag(c.source.split(" >>> ")[1]);
         }
 
         if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
