@@ -237,17 +237,17 @@ export default function ClickAnalyticsPage() {
   const totalPages = Math.ceil(filteredDailyGroups.length / itemsPerPage);
   const paginatedDailyData = useMemo(() => {
     const s = (dailyPage - 1) * itemsPerPage;
+  const filteredDailyGroups = useMemo(() => {
+    setDailyPage(1);
+    return dailyGroups;
+  }, [dailyGroups]);
+
+  const itemsPerPage = 10; // Show 10 days per page
+  const totalPages = Math.ceil(filteredDailyGroups.length / itemsPerPage);
+  const paginatedDailyData = useMemo(() => {
+    const s = (dailyPage - 1) * itemsPerPage;
     return filteredDailyGroups.slice(s, s + itemsPerPage);
   }, [filteredDailyGroups, dailyPage]);
-
-  const toggleDate = (date: string) => {
-    setExpandedDates(prev => {
-      const next = new Set(prev);
-      if (next.has(date)) next.delete(date);
-      else next.add(date);
-      return next;
-    });
-  };
 
   const fmt = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
 
@@ -339,29 +339,29 @@ export default function ClickAnalyticsPage() {
                       {/* DAY HEADER */}
                       <div 
                         onClick={() => toggleDate(dayGroup.date)}
-                        className="p-3 md:p-4 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors group select-none"
+                        className="py-2.5 px-3 md:px-4 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer hover:bg-white/[0.03] transition-colors group select-none"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           {isToday && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse" />}
-                          <span className={`text-base font-black tracking-tight ${isToday ? "text-amber-400" : "text-white"}`}>{dayGroup.date}</span>
-                          {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-widest">Today</span>}
+                          <span className={`text-sm font-black tracking-tight ${isToday ? "text-amber-400" : "text-white"}`}>{dayGroup.date}</span>
+                          {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1 py-0.5 rounded uppercase tracking-widest">Today</span>}
                         </div>
                         
-                        <div className="flex items-center gap-5">
+                        <div className="flex items-center gap-4">
                           <div className="flex flex-col items-end">
                             <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Clicks</span>
-                            <span className="text-xs font-black text-white">{dayGroup.totalClicks.toLocaleString()}</span>
+                            <span className="text-[11px] font-black text-white">{dayGroup.totalClicks.toLocaleString()}</span>
                           </div>
                           <div className="flex flex-col items-end">
                             <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Orders</span>
-                            <span className="text-xs font-black text-blue-400">{dayGroup.totalOrders.toLocaleString()}</span>
+                            <span className="text-[11px] font-black text-blue-400">{dayGroup.totalOrders.toLocaleString()}</span>
                           </div>
                           <div className="flex flex-col items-end">
                             <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Commission</span>
-                            <span className="text-xs font-black text-emerald-400">{fmt(dayGroup.totalCommission)}</span>
+                            <span className="text-[11px] font-black text-emerald-400">{fmt(dayGroup.totalCommission)}</span>
                           </div>
-                          <div className="pl-3 border-l border-white/10 flex items-center justify-center">
-                            <ChevronDown className={`w-4 h-4 text-slate-500 group-hover:text-violet-400 transition-all duration-300 ${expandedDates.has(dayGroup.date) ? "rotate-180 text-violet-500" : ""}`} />
+                          <div className="pl-2 border-l border-white/10 flex items-center justify-center">
+                            <ChevronDown className={`w-3.5 h-3.5 text-slate-500 group-hover:text-violet-400 transition-all duration-300 ${expandedDates.has(dayGroup.date) ? "rotate-180 text-violet-500" : ""}`} />
                           </div>
                         </div>
                       </div>
@@ -447,15 +447,19 @@ export default function ClickAnalyticsPage() {
                         <ChevronLeft className="w-4 h-4" />
                       </button>
                       <div className="flex items-center gap-1.5">
-                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        {Array.from({ length: totalPages }, (_, i) => {
                           const page = i + 1;
-                          return (
-                            <button key={page} onClick={() => setDailyPage(page)} className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all border ${dailyPage === page ? "bg-violet-600 border-transparent text-white shadow-lg" : "bg-white/5 border-white/5 text-slate-500 hover:text-white"}`}>
-                              {page}
-                            </button>
-                          );
+                          if (page === 1 || page === totalPages || (page >= dailyPage - 1 && page <= dailyPage + 1)) {
+                            return (
+                              <button key={page} onClick={() => setDailyPage(page)} className={`w-7 h-7 rounded-lg text-[10px] font-black transition-all border ${dailyPage === page ? "bg-violet-600 border-transparent text-white shadow-lg" : "bg-white/5 border-white/5 text-slate-500 hover:text-white"}`}>
+                                {page}
+                              </button>
+                            );
+                          } else if (page === dailyPage - 2 || page === dailyPage + 2) {
+                            return <span key={page} className="text-slate-600 text-[10px] font-black px-1">...</span>;
+                          }
+                          return null;
                         })}
-                        {totalPages > 5 && <span className="text-slate-600 text-[10px] font-black px-1">...{totalPages}</span>}
                       </div>
                       <button onClick={() => setDailyPage(p => Math.min(totalPages, p + 1))} disabled={dailyPage === totalPages} className="p-2 bg-white/5 border border-white/5 rounded-lg text-slate-400 hover:text-white disabled:opacity-20 transition-all active:scale-95">
                         <ChevronRight className="w-4 h-4" />
