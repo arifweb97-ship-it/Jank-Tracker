@@ -79,15 +79,57 @@ export default function ClickAnalyticsPage() {
         dateFilter = d.toISOString();
       }
 
-      // Fetch clicks from shopee_clicks
-      let clickQuery = supabase.from("shopee_clicks").select("tag_link, technical_source, click_time").eq("user_id", user!.id);
-      if (dateFilter) clickQuery = clickQuery.gte("click_time", dateFilter);
-      const { data: clicks } = await clickQuery;
+      // Fetch clicks from shopee_clicks (Paginated to bypass 1000 row limit)
+      let allClicks: any[] = [];
+      let clickHasMore = true;
+      let clickFrom = 0;
+      const pageSize = 1000;
 
-      // Fetch commissions from daily_records
-      let commQuery = supabase.from("daily_records").select("date, source, commission, orders").eq("user_id", user!.id).eq("category", "shopee_comm");
-      if (dateFilter) commQuery = commQuery.gte("date", dateFilter);
-      const { data: comms } = await commQuery;
+      while (clickHasMore) {
+        let clickQuery = supabase
+          .from("shopee_clicks")
+          .select("tag_link, technical_source, click_time")
+          .eq("user_id", user!.id)
+          .range(clickFrom, clickFrom + pageSize - 1);
+        
+        if (dateFilter) clickQuery = clickQuery.gte("click_time", dateFilter);
+        
+        const { data } = await clickQuery;
+        if (data && data.length > 0) {
+          allClicks = [...allClicks, ...data];
+          if (data.length < pageSize) clickHasMore = false;
+          else clickFrom += pageSize;
+        } else {
+          clickHasMore = false;
+        }
+      }
+      const clicks = allClicks;
+
+      // Fetch commissions from daily_records (Paginated)
+      let allComms: any[] = [];
+      let commHasMore = true;
+      let commFrom = 0;
+
+      while (commHasMore) {
+        let commQuery = supabase
+          .from("daily_records")
+          .select("date, source, commission, orders")
+          .eq("user_id", user!.id)
+          .eq("category", "shopee_comm")
+          .range(commFrom, commFrom + pageSize - 1);
+        
+        if (dateFilter) commQuery = commQuery.gte("date", dateFilter);
+
+        const { data } = await commQuery;
+        if (data && data.length > 0) {
+          allComms = [...allComms, ...data];
+          if (data.length < pageSize) commHasMore = false;
+          else commFrom += pageSize;
+        } else {
+          commHasMore = false;
+        }
+      }
+      const comms = allComms;
 
       // Aggregate by tag_link
       const tagMap: Record<string, { clicks: number; orders: number; commission: number }> = {};
@@ -299,47 +341,47 @@ export default function ClickAnalyticsPage() {
               </div>
 
               {/* DAY-BY-DAY TAG LINK FEED */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 px-2">
-                  <CalendarDays className="w-5 h-5 text-violet-500" />
-                  <h3 className="text-sm font-black text-white uppercase tracking-[0.2em]">Daily Traffic Feed</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-2 pb-2">
+                  <CalendarDays className="w-4 h-4 text-violet-500" />
+                  <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Daily Traffic Feed</h3>
                 </div>
 
                 {paginatedDailyData.length === 0 ? (
-                  <div className="py-20 text-center bg-slate-900/20 rounded-2xl border border-white/5">
+                  <div className="py-12 text-center bg-slate-900/20 rounded-xl border border-white/5">
                     <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest">No daily data available. Upload click CSV to get started.</p>
                   </div>
                 ) : paginatedDailyData.map((dayGroup, idx) => {
                   const isToday = dayGroup.date === new Date().toISOString().split("T")[0];
                   return (
-                    <div key={dayGroup.date} className={`flex flex-col bg-slate-900/40 backdrop-blur-2xl border ${isToday ? "border-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.1)]" : "border-white/5"} rounded-2xl overflow-hidden transition-all duration-500`}>
+                    <div key={dayGroup.date} className={`flex flex-col bg-slate-900/40 backdrop-blur-2xl border ${isToday ? "border-violet-500/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]" : "border-white/5"} rounded-xl overflow-hidden transition-all duration-300`}>
                       
                       {/* DAY HEADER */}
                       <div 
                         onClick={() => toggleDate(dayGroup.date)}
-                        className="p-5 md:p-6 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-white/[0.02] transition-colors group select-none"
+                        className="p-3 md:p-4 border-b border-white/5 bg-slate-950/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors group select-none"
                       >
                         <div className="flex items-center gap-3">
-                          {isToday && <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse" />}
-                          <span className={`text-lg font-black tracking-tighter ${isToday ? "text-amber-400" : "text-white"}`}>{dayGroup.date}</span>
-                          {isToday && <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded uppercase tracking-widest">Today</span>}
+                          {isToday && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse" />}
+                          <span className={`text-base font-black tracking-tight ${isToday ? "text-amber-400" : "text-white"}`}>{dayGroup.date}</span>
+                          {isToday && <span className="text-[7px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-widest">Today</span>}
                         </div>
                         
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-5">
                           <div className="flex flex-col items-end">
-                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Clicks</span>
-                            <span className="text-sm font-black text-white">{dayGroup.totalClicks.toLocaleString()}</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Clicks</span>
+                            <span className="text-xs font-black text-white">{dayGroup.totalClicks.toLocaleString()}</span>
                           </div>
                           <div className="flex flex-col items-end">
-                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Orders</span>
-                            <span className="text-sm font-black text-blue-400">{dayGroup.totalOrders.toLocaleString()}</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Orders</span>
+                            <span className="text-xs font-black text-blue-400">{dayGroup.totalOrders.toLocaleString()}</span>
                           </div>
                           <div className="flex flex-col items-end">
-                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Commission</span>
-                            <span className="text-sm font-black text-emerald-400">{fmt(dayGroup.totalCommission)}</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Commission</span>
+                            <span className="text-xs font-black text-emerald-400">{fmt(dayGroup.totalCommission)}</span>
                           </div>
-                          <div className="pl-4 border-l border-white/10 flex items-center justify-center">
-                            <ChevronDown className={`w-5 h-5 text-slate-500 group-hover:text-violet-400 transition-all duration-300 ${expandedDates.has(dayGroup.date) ? "rotate-180 text-violet-500" : ""}`} />
+                          <div className="pl-3 border-l border-white/10 flex items-center justify-center">
+                            <ChevronDown className={`w-4 h-4 text-slate-500 group-hover:text-violet-400 transition-all duration-300 ${expandedDates.has(dayGroup.date) ? "rotate-180 text-violet-500" : ""}`} />
                           </div>
                         </div>
                       </div>
