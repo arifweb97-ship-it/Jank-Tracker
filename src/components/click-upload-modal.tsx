@@ -125,16 +125,27 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
     const fingerprints = new Set<string>();
 
     try {
-      // Step 1: Fetch existing click_ids to avoid duplicates
-      const { data: existingClicks } = await supabase
-        .from("shopee_clicks")
-        .select("click_id")
-        .eq("user_id", user.id);
-
-      if (existingClicks) {
-        existingClicks.forEach(c => {
-          if (c.click_id) fingerprints.add(c.click_id);
-        });
+      // Step 1: Fetch ALL existing click_ids to avoid duplicates (Paginated to bypass 1000 limit)
+      let fetchMore = true;
+      let from = 0;
+      const pageSize = 1000;
+      
+      while (fetchMore) {
+        const { data: existingClicks } = await supabase
+          .from("shopee_clicks")
+          .select("click_id")
+          .eq("user_id", user.id)
+          .range(from, from + pageSize - 1);
+          
+        if (existingClicks && existingClicks.length > 0) {
+          existingClicks.forEach(c => {
+            if (c.click_id) fingerprints.add(c.click_id);
+          });
+          if (existingClicks.length < pageSize) fetchMore = false;
+          else from += pageSize;
+        } else {
+          fetchMore = false;
+        }
       }
 
       // Step 2: Parse all CSV files
