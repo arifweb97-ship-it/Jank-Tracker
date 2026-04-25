@@ -226,19 +226,6 @@ export default function ClickAnalyticsPage() {
 
   const filteredDailyGroups = useMemo(() => {
     setDailyPage(1);
-    if (!search) return dailyGroups;
-    return dailyGroups.map(group => ({
-      ...group,
-      tags: group.tags.filter(t => t.tag.toLowerCase().includes(search.toLowerCase()))
-    })).filter(group => group.tags.length > 0);
-  }, [dailyGroups, search]);
-
-  const itemsPerPage = 5; // Show 5 days per page
-  const totalPages = Math.ceil(filteredDailyGroups.length / itemsPerPage);
-  const paginatedDailyData = useMemo(() => {
-    const s = (dailyPage - 1) * itemsPerPage;
-  const filteredDailyGroups = useMemo(() => {
-    setDailyPage(1);
     return dailyGroups;
   }, [dailyGroups]);
 
@@ -248,6 +235,15 @@ export default function ClickAnalyticsPage() {
     const s = (dailyPage - 1) * itemsPerPage;
     return filteredDailyGroups.slice(s, s + itemsPerPage);
   }, [filteredDailyGroups, dailyPage]);
+
+  const toggleDate = (date: string) => {
+    setExpandedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
 
   const fmt = (v: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
 
