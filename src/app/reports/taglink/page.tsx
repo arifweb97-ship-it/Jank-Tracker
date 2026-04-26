@@ -36,35 +36,65 @@ export default function TaglinkReportPage() {
       setLoading(true);
       try {
         if (!user?.id) return;
-        const { data: records } = await supabase
-          .from("daily_records")
-          .select("source, clicks, commission, orders, category")
-          .eq("user_id", user.id)
-          .in("category", ["shopee_click", "shopee_comm"]); // Pure Shopee Only
 
-        if (records) {
-          const map: Record<string, TagMetric> = {};
-
-          records.forEach(r => {
-            const parts = (r.source || "").split(" >>> ");
-            const tag = parts.length > 1 ? parts[1] : (parts[0] || "Untagged");
-
-            if (!map[tag]) {
-              map[tag] = { tag, clicks: 0, orders: 0, commission: 0 };
-            }
-
-            if (r.category === "shopee_click") map[tag].clicks += (Number(r.clicks) || 0);
-            if (r.category === "shopee_comm") {
-              map[tag].commission += (Number(r.commission) || 0);
-              map[tag].orders += (Number(r.orders) || 0);
-            }
-          });
-
-          const formatted = Object.values(map)
-            .sort((a, b) => b.commission - a.commission);
-
-          setData(formatted);
+        // Fetch daily_records
+        let commCountQuery = supabase.from("daily_records").select('*', { count: 'exact', head: true }).eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm"]);
+        const { count: commCount } = await commCountQuery;
+        let allRecords: any[] = [];
+        if (commCount && commCount > 0) {
+          const promises = [];
+          for (let i = 0; i < commCount; i += 1000) {
+            promises.push(supabase.from("daily_records").select("source, clicks, commission, orders, category").eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm"]).range(i, i + 999));
+          }
+          const results = await Promise.all(promises);
+          allRecords = results.flatMap(res => res.data || []);
         }
+
+        // Fetch shopee_clicks table
+        let clickCountQuery = supabase.from("shopee_clicks").select('*', { count: 'exact', head: true }).eq("user_id", user.id);
+        const { count: clickCount } = await clickCountQuery;
+        let allShopeeClicks: any[] = [];
+        if (clickCount && clickCount > 0) {
+          const promises = [];
+          for (let i = 0; i < clickCount; i += 1000) {
+            promises.push(supabase.from("shopee_clicks").select("tag_link").eq("user_id", user.id).range(i, i + 999));
+          }
+          const results = await Promise.all(promises);
+          allShopeeClicks = results.flatMap(res => res.data || []);
+        }
+
+        const map: Record<string, TagMetric> = {};
+
+        const normalizeTag = (val: string | null): string => {
+          if (!val) return "Untagged";
+          let str = String(val).trim();
+          str = str.replace(/[^a-zA-Z0-9]+$/, '');
+          return str.replace(/\s+/g, ' ').trim() || "Untagged";
+        };
+
+        allRecords.forEach(r => {
+          const parts = (r.source || "").split(" >>> ");
+          const tag = parts.length > 1 ? parts[1] : (parts[0] || "Untagged");
+          const normTag = normalizeTag(tag);
+
+          if (!map[normTag]) map[normTag] = { tag: normTag, clicks: 0, orders: 0, commission: 0 };
+          if (r.category === "shopee_click") map[normTag].clicks += (Number(r.clicks) || 0);
+          if (r.category === "shopee_comm") {
+            map[normTag].commission += (Number(r.commission) || 0);
+            map[normTag].orders += (Number(r.orders) || 0);
+          }
+        });
+
+        allShopeeClicks.forEach(c => {
+          const normTag = normalizeTag(c.tag_link);
+          if (!map[normTag]) map[normTag] = { tag: normTag, clicks: 0, orders: 0, commission: 0 };
+          map[normTag].clicks += 1;
+        });
+
+        const formatted = Object.values(map)
+          .sort((a, b) => b.commission - a.commission);
+
+        setData(formatted);
       } catch (e) {
         console.error(e);
       } finally {

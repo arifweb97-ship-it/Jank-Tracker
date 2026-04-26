@@ -53,51 +53,81 @@ export default function ClicksReportPage() {
       if (!user?.id) return;
       setLoading(true);
       try {
-        const { data: records } = await supabase
-          .from("daily_records")
-          .select("source, clicks, commission, orders, date, category")
-          .eq("user_id", user.id)
-          .in("category", ["shopee_click", "shopee_comm", "meta"]);
-
-        if (records) {
-          const platformMap: Record<string, PlacementMetric> = {};
-          const dailyMap: Record<string, { c: number, v: number }> = {};
-          let totalMeta = 0;
-
-          records.forEach(r => {
-            const rawSource = r.source || "Others";
-            const platform = normalizePlatform(rawSource);
-            
-            if (!platformMap[platform]) {
-              platformMap[platform] = { source: platform, clicks: 0, orders: 0, commission: 0 };
-            }
-
-            const d = r.date || "Unknown";
-            if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
-
-            if (r.category === "shopee_click") {
-              platformMap[platform].clicks += (Number(r.clicks) || 0);
-              dailyMap[d].c += (Number(r.clicks) || 0);
-            } else if (r.category === "shopee_comm") {
-              platformMap[platform].commission += (Number(r.commission) || 0);
-              platformMap[platform].orders += (Number(r.orders) || 0);
-              dailyMap[d].v += (Number(r.commission) || 0);
-            } else if (r.category === "meta") {
-              totalMeta += (Number(r.clicks) || 0);
-            }
-          });
-
-          const formattedSources = Object.values(platformMap)
-            .sort((a, b) => b.commission - a.commission);
-
-          const formattedTrend = Object.entries(dailyMap)
-            .map(([date, val]) => ({ date, clicks: val.c, comm: val.v }))
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-          setData(formattedSources);
-          setTrendData(formattedTrend);
-          setMetaClicks(totalMeta);
+        // Fetch daily_records
+        let recordsQuery = supabase.from("daily_records").select('*', { count: 'exact', head: true }).eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm", "meta"]);
+        const { count: recCount } = await recordsQuery;
+        let allRecords: any[] = [];
+        if (recCount && recCount > 0) {
+          const promises = [];
+          for (let i = 0; i < recCount; i += 1000) {
+            promises.push(supabase.from("daily_records").select("source, clicks, commission, orders, date, category").eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm", "meta"]).range(i, i + 999));
+          }
+          const results = await Promise.all(promises);
+          allRecords = results.flatMap(res => res.data || []);
         }
+
+        // Fetch shopee_clicks table
+        let clickCountQuery = supabase.from("shopee_clicks").select('*', { count: 'exact', head: true }).eq("user_id", user.id);
+        const { count: clickCount } = await clickCountQuery;
+        let allShopeeClicks: any[] = [];
+        if (clickCount && clickCount > 0) {
+          const promises = [];
+          for (let i = 0; i < clickCount; i += 1000) {
+            promises.push(supabase.from("shopee_clicks").select("technical_source, click_time").eq("user_id", user.id).range(i, i + 999));
+          }
+          const results = await Promise.all(promises);
+          allShopeeClicks = results.flatMap(res => res.data || []);
+        }
+
+        const platformMap: Record<string, PlacementMetric> = {};
+        const dailyMap: Record<string, { c: number, v: number }> = {};
+        let totalMeta = 0;
+
+        allRecords.forEach(r => {
+          const rawSource = r.source || "Others";
+          const platform = normalizePlatform(rawSource);
+          
+          if (!platformMap[platform]) {
+            platformMap[platform] = { source: platform, clicks: 0, orders: 0, commission: 0 };
+          }
+
+          const d = r.date || "Unknown";
+          if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
+
+          if (r.category === "shopee_click") {
+            platformMap[platform].clicks += (Number(r.clicks) || 0);
+            dailyMap[d].c += (Number(r.clicks) || 0);
+          } else if (r.category === "shopee_comm") {
+            platformMap[platform].commission += (Number(r.commission) || 0);
+            platformMap[platform].orders += (Number(r.orders) || 0);
+            dailyMap[d].v += (Number(r.commission) || 0);
+          } else if (r.category === "meta") {
+            totalMeta += (Number(r.clicks) || 0);
+          }
+        });
+
+        allShopeeClicks.forEach(c => {
+          const platform = normalizePlatform(c.technical_source || "Others");
+          if (!platformMap[platform]) {
+            platformMap[platform] = { source: platform, clicks: 0, orders: 0, commission: 0 };
+          }
+          platformMap[platform].clicks += 1;
+
+          const d = c.click_time ? c.click_time.split("T")[0] : "Unknown";
+          if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
+          dailyMap[d].c += 1;
+        });
+
+        const formattedSources = Object.values(platformMap)
+          .sort((a, b) => b.commission - a.commission);
+
+        const formattedTrend = Object.entries(dailyMap)
+          .map(([date, val]) => ({ date, clicks: val.c, comm: val.v }))
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        setData(formattedSources);
+        setTrendData(formattedTrend);
+        setMetaClicks(totalMeta);
       } catch (e) {
         console.error(e);
       } finally {

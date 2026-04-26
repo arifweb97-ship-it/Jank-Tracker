@@ -159,17 +159,20 @@ export default function ClickAnalyticsPage() {
           tag = normalizeTag(c.source.split(" >>> ")[1]);
         }
 
-        if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
-        tagMap[tag].orders += c.orders || 0;
-        tagMap[tag].commission += Number(c.commission) || 0;
+        // Only include commission data for tags that have tracked clicks
+        // This separates the general dashboard noise from the Click Analytics module
+        if (tagMap[tag]) {
+          tagMap[tag].orders += c.orders || 0;
+          tagMap[tag].commission += Number(c.commission) || 0;
 
-        // Daily orders aggregation
-        const dateStr = c.date ? c.date.split("T")[0] : "unknown";
-        const dailyKey = `${dateStr}|${tag}`;
-        if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
-        
-        dailyMap[dailyKey].orders += c.orders || 0;
-        dailyMap[dailyKey].commission += Number(c.commission) || 0;
+          // Daily orders aggregation
+          const dateStr = c.date ? c.date.split("T")[0] : "unknown";
+          const dailyKey = `${dateStr}|${tag}`;
+          if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
+          
+          dailyMap[dailyKey].orders += c.orders || 0;
+          dailyMap[dailyKey].commission += Number(c.commission) || 0;
+        }
       });
 
       const tags: TagPerformance[] = Object.entries(tagMap)
