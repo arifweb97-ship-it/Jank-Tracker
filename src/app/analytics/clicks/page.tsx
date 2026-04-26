@@ -96,12 +96,13 @@ export default function ClickAnalyticsPage() {
       }
       const clicks = allClicks;
 
-      // Fetch commissions from daily_records (Parallel Paginated)
+      // Fetch isolated commissions from daily_records (Parallel Paginated)
       let commCountQuery = supabase
         .from("daily_records")
         .select('*', { count: 'exact', head: true })
         .eq("user_id", user!.id)
-        .eq("category", "shopee_analytics_comm");
+        .eq("category", "shopee_click")
+        .like("source", "ANALYTICS_COMM >>>%");
         
       if (dateFilter) commCountQuery = commCountQuery.gte("date", dateFilter);
       const { count: commCount } = await commCountQuery;
@@ -115,7 +116,8 @@ export default function ClickAnalyticsPage() {
             .from("daily_records")
             .select("date, source, commission, orders")
             .eq("user_id", user!.id)
-            .eq("category", "shopee_analytics_comm")
+            .eq("category", "shopee_click")
+            .like("source", "ANALYTICS_COMM >>>%")
             .range(i, i + pageSize - 1);
           if (dateFilter) query = query.gte("date", dateFilter);
           promises.push(query);
@@ -155,8 +157,11 @@ export default function ClickAnalyticsPage() {
       // Process aggregated commission/orders from daily_records
       (comms || []).forEach((c: any) => {
         let tag = "Untagged";
-        if (c.source && c.source.includes(" >>> ")) {
-          tag = normalizeTag(c.source.split(" >>> ")[1]);
+        if (c.source && c.source.startsWith("ANALYTICS_COMM >>> ")) {
+          const parts = c.source.split(" >>> ");
+          if (parts.length >= 3) {
+            tag = normalizeTag(parts[2]);
+          }
         }
 
         // Only include commission data for tags that have tracked clicks

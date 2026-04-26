@@ -292,19 +292,19 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
         setCurrentProgress(50 + (insertedClicks / allRows.length) * 25);
       }
 
-      // Step 4: Insert Commissions into daily_records under shopee_analytics_comm
+      // Step 4: Insert Commissions into daily_records under shopee_click with ANALYTICS_COMM prefix
       let insertedComms = 0;
       if (Object.keys(MASTER_COMM).length > 0) {
         const commRows: any[] = [];
         Object.values(MASTER_COMM).forEach(group => group.forEach(val => {
           if (val.amount > 0 || val.orders > 0) {
             commRows.push({
-              date: val.d, category: "shopee_analytics_comm", source: `${val.source} >>> ${val.tag}`, commission: Number(val.amount.toFixed(2)), orders: val.orders, updated_at: new Date().toISOString(), user_id: user.id
+              date: val.d, category: "shopee_click", source: `ANALYTICS_COMM >>> ${val.source} >>> ${val.tag}`, commission: Number(val.amount.toFixed(2)), orders: val.orders, updated_at: new Date().toISOString(), user_id: user.id
             });
           }
         }));
         
-        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_COMM)).eq("category", "shopee_analytics_comm").eq("user_id", user.id);
+        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_COMM)).eq("category", "shopee_click").like("source", "ANALYTICS_COMM >>>%").eq("user_id", user.id);
         if (delErr) throw new Error(`Comm Delete Error: ${delErr.message}`);
         
         if (commRows.length > 0) {
