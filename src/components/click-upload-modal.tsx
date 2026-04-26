@@ -103,6 +103,34 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
     return "Others";
   };
 
+  const cleanNumber = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    
+    let str = String(val).trim();
+    
+    if (str.includes(',') && str.includes('.')) {
+      const dotIndex = str.lastIndexOf('.');
+      const commaIndex = str.lastIndexOf(',');
+      if (commaIndex > dotIndex) {
+        str = str.replace(/\./g, '').replace(/,/g, '.');
+      } else {
+        str = str.replace(/,/g, '');
+      }
+    } else if (str.includes(',')) {
+      const parts = str.split(',');
+      if (parts[1] && parts[1].length <= 2) {
+        str = str.replace(/,/g, '.');
+      } else {
+        str = str.replace(/,/g, '');
+      }
+    }
+    
+    const cleanStr = str.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? 0 : num;
+  };
+
   const handleSync = async () => {
     if (queue.length === 0 || !user?.id) return;
     setIsUploading(true);
@@ -113,6 +141,9 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
     const CLICK_ID_ALIASES = ["Click id", "Click ID", "ID Klik", "Click Id"];
     const TAG_ALIASES = ["Tag_link", "Tag_link1", "Tag Link", "Tag_Link", "Link Name", "Custom Link", "Sub ID", "Sub_id1", "Subid", "Sub_id", "Nama Link", "Tag"];
     const PLATFORM_ALIASES = ["Referrer", "Channel", "Saluran", "Placement", "Site Source Name", "Site", "Sumber", "Platform", "Device"];
+    const DATE_ALIASES = ["Order Time", "Waktu Pesanan", "Click Time", "Waktu Klik", "Tanggal Klik", "Date", "Tanggal"];
+    const COMM_ALIASES = ["Affiliate Net Commission", "Total Order Commission", "Total Order Commission(Rp)", "Affiliate Net Commission(Rp)", "Komisi", "Estimated Commission", "Estimasi Komisi", "Net Commission", "Komisi Bersih", "Commission"];
+    const ORDER_ALIASES = ["Order ID", "Order id", "ID Pesanan", "Conversion id", "Order No"];
 
     const allRows: {
       click_id: string;
@@ -122,7 +153,9 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
       user_id: string;
     }[] = [];
 
+    const MASTER_COMM: Record<string, { amount: number, orders: number, d: string, tag: string, source: string }[]> = {};
     const fingerprints = new Set<string>();
+    const shopeeCommFingerprints = new Set<string>();
 
     try {
       // Step 1: Fetch ALL existing click_ids to avoid duplicates (Paginated to bypass 1000 limit)
@@ -160,6 +193,54 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
                 const data = results.data;
                 if (data.length === 0) return resolve(true);
 
+                const headers = Object.keys(data[0] || {});
+                const h = headers.join(",").toLowerCase();
+                const isOrderReport = (h.includes("order status") || h.includes("status pesanan") || h.includes("waktu pesanan")) && !(h.includes("commission") || h.includes("komisi"));
+
+                // Handle Commissions
+                if (!isOrderReport) {
+                  const isComm = h.includes("order") || h.includes("commission") || h.includes("komisi") || h.includes("estimasi");
+                  if (isComm) {
+                    const hasItemComm = getAliasValue(data[0] || {}, ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi", "Estimated Commission"]) !== null;
+                    data.forEach((row: any) => {
+                      const dRaw = getAliasValue(row, DATE_ALIASES);
+                      const d = dRaw ? (cleanDateTime(dRaw) ? cleanDateTime(dRaw)!.split("T")[0] : null) : null;
+                      const orderId = getAliasValue(row, ORDER_ALIASES);
+                      
+                      let technical = normalizeSource(getAliasValue(row, PLATFORM_ALIASES) || "Others");
+                      let rawTag = getAliasValue(row, TAG_ALIASES);
+                      let tag = rawTag ? String(rawTag).trim().replace(/[^a-zA-Z0-9\s_-]+$/g, '').trim() : "Untagged";
+                      
+                      if (d && orderId) {
+                        const isNewOrder = !shopeeCommFingerprints.has(String(orderId));
+                        if (isNewOrder) {
+                          shopeeCommFingerprints.add(String(orderId));
+                        }
+                        
+                        let rowComm = 0;
+                        if (hasItemComm) {
+                          rowComm = cleanNumber(getAliasValue(row, ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi", "Estimated Commission"]));
+                        } else {
+                          if (isNewOrder) {
+                            rowComm = cleanNumber(getAliasValue(row, COMM_ALIASES));
+                          }
+                        }
+
+                        MASTER_COMM[d] = MASTER_COMM[d] || [];
+                        const existing = MASTER_COMM[d].find(x => x.tag === tag && x.source === technical);
+                        
+                        if (existing) { 
+                          existing.amount += rowComm; 
+                          if (isNewOrder) existing.orders += 1; 
+                        } else { 
+                          MASTER_COMM[d].push({ amount: rowComm, orders: isNewOrder ? 1 : 0, d, tag, source: technical }); 
+                        }
+                      }
+                    });
+                  }
+                }
+
+                // Handle Clicks
                 data.forEach((row: any) => {
                   const clickId = getAliasValue(row, CLICK_ID_ALIASES);
                   const clickIdStr = clickId ? String(clickId).trim() : "";
@@ -174,13 +255,15 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
                   const rawTag = getAliasValue(row, TAG_ALIASES);
                   const tagLink = rawTag ? String(rawTag).trim().replace(/[^a-zA-Z0-9\s_-]+$/g, '').trim() : "Untagged";
 
-                  allRows.push({
-                    click_id: clickIdStr || `auto_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-                    click_time: clickTime,
-                    technical_source: technical,
-                    tag_link: tagLink || "Untagged",
-                    user_id: user.id
-                  });
+                  if (clickTime) {
+                    allRows.push({
+                      click_id: clickIdStr || `auto_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+                      click_time: clickTime,
+                      technical_source: technical,
+                      tag_link: tagLink || "Untagged",
+                      user_id: user.id
+                    });
+                  }
                 });
 
                 resolve(true);
@@ -194,22 +277,44 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
         setCurrentProgress(((i + 1) / queue.length) * 50);
       }
 
-      if (allRows.length === 0) {
-        throw new Error("No click data found. Check CSV headers (e.g. 'Click id', 'Click Time', 'Tag_link').");
+      if (allRows.length === 0 && Object.keys(MASTER_COMM).length === 0) {
+        throw new Error("No click or commission data found. Check CSV headers.");
       }
 
-      // Step 3: Insert in batches of 500
+      // Step 3: Insert Clicks in batches of 500
       const BATCH_SIZE = 500;
-      let inserted = 0;
+      let insertedClicks = 0;
       for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
         const batch = allRows.slice(i, i + BATCH_SIZE);
         const { error } = await supabase.from("shopee_clicks").insert(batch);
-        if (error) throw new Error(`Insert Error: ${error.message}`);
-        inserted += batch.length;
-        setCurrentProgress(50 + (inserted / allRows.length) * 50);
+        if (error) throw new Error(`Click Insert Error: ${error.message}`);
+        insertedClicks += batch.length;
+        setCurrentProgress(50 + (insertedClicks / allRows.length) * 25);
       }
 
-      setStatus({ type: "success", message: `Synced ${inserted.toLocaleString()} clicks from ${queue.length} file(s).` });
+      // Step 4: Insert Commissions into daily_records under shopee_analytics_comm
+      let insertedComms = 0;
+      if (Object.keys(MASTER_COMM).length > 0) {
+        const commRows: any[] = [];
+        Object.values(MASTER_COMM).forEach(group => group.forEach(val => {
+          if (val.amount > 0 || val.orders > 0) {
+            commRows.push({
+              date: val.d, category: "shopee_analytics_comm", source: `${val.source} >>> ${val.tag}`, commission: Number(val.amount.toFixed(2)), orders: val.orders, updated_at: new Date().toISOString(), user_id: user.id
+            });
+          }
+        }));
+        
+        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_COMM)).eq("category", "shopee_analytics_comm").eq("user_id", user.id);
+        if (delErr) throw new Error(`Comm Delete Error: ${delErr.message}`);
+        
+        if (commRows.length > 0) {
+          const { error: insErr } = await supabase.from("daily_records").insert(commRows);
+          if (insErr) throw new Error(`Comm Insert Error: ${insErr.message}`);
+          insertedComms = commRows.length;
+        }
+      }
+
+      setStatus({ type: "success", message: `Synced ${insertedClicks.toLocaleString()} clicks and updated ${insertedComms} days of commission.` });
       setQueue([]);
 
       if (onSuccess) onSuccess();
@@ -253,8 +358,8 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
               <Upload className="w-5 h-5 text-violet-500" />
             </div>
             <div className="flex flex-col">
-              <p className="text-[10px] font-black text-white uppercase tracking-widest">Upload Shopee Click CSV</p>
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Format: Klik_*.csv dari Shopee Affiliate</p>
+              <p className="text-[10px] font-black text-white uppercase tracking-widest">Upload Data Klik & Komisi</p>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Format: Klik_*.csv & Komisi_*.csv dari Shopee</p>
             </div>
           </div>
 

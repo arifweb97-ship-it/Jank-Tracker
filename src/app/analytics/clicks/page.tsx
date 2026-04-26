@@ -101,7 +101,7 @@ export default function ClickAnalyticsPage() {
         .from("daily_records")
         .select('*', { count: 'exact', head: true })
         .eq("user_id", user!.id)
-        .eq("category", "shopee_comm");
+        .eq("category", "shopee_analytics_comm");
         
       if (dateFilter) commCountQuery = commCountQuery.gte("date", dateFilter);
       const { count: commCount } = await commCountQuery;
@@ -115,7 +115,7 @@ export default function ClickAnalyticsPage() {
             .from("daily_records")
             .select("date, source, commission, orders")
             .eq("user_id", user!.id)
-            .eq("category", "shopee_comm")
+            .eq("category", "shopee_analytics_comm")
             .range(i, i + pageSize - 1);
           if (dateFilter) query = query.gte("date", dateFilter);
           promises.push(query);
