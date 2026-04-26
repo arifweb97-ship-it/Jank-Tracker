@@ -217,7 +217,7 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
                 } else {
                   // 🛡️ Skip Order Status CSVs to prevent them from inflating commissions.
                   // Order CSVs must be uploaded in the dedicated Order Reports page.
-                  const isOrderReport = h.includes("order status") || h.includes("status pesanan") || h.includes("waktu pesanan");
+                  const isOrderReport = (h.includes("order status") || h.includes("status pesanan") || h.includes("waktu pesanan")) && !(h.includes("commission") || h.includes("komisi"));
                   
                   if (!isOrderReport) {
                     const isComm = h.includes("order") || h.includes("commission") || h.includes("komisi") || h.includes("estimasi");
