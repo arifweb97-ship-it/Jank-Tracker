@@ -113,7 +113,12 @@ export default function ClicksReportPage() {
           }
           platformMap[platform].clicks += 1;
 
-          const d = c.click_time ? c.click_time.split("T")[0] : "Unknown";
+          let d = "Unknown";
+          if (c.click_time) {
+            const dateObj = new Date(c.click_time);
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            d = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`;
+          }
           if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
           dailyMap[d].c += 1;
         });

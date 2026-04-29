@@ -148,7 +148,12 @@ export default function ClickAnalyticsPage() {
         platMap[plat] = (platMap[plat] || 0) + 1;
 
         // Daily aggregation
-        const dateStr = c.click_time ? new Date(c.click_time).toISOString().split("T")[0] : "unknown";
+        let dateStr = "unknown";
+        if (c.click_time) {
+          const d = new Date(c.click_time);
+          const pad = (n: number) => n.toString().padStart(2, '0');
+          dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        }
         const dailyKey = `${dateStr}|${tag}`;
         if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
         dailyMap[dailyKey].clicks += 1;

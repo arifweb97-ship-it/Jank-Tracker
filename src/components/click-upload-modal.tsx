@@ -204,7 +204,22 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
                     const hasItemComm = getAliasValue(data[0] || {}, ["Item Total Commission(Rp)", "Item Total Commission", "Estimasi Komisi", "Estimated Commission"]) !== null;
                     data.forEach((row: any) => {
                       const dRaw = getAliasValue(row, DATE_ALIASES);
-                      const d = dRaw ? (cleanDateTime(dRaw) ? cleanDateTime(dRaw)!.split("T")[0] : null) : null;
+                      let d = null;
+                      if (dRaw) {
+                        let str = String(dRaw).trim();
+                        if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
+                          d = str.substring(0, 10);
+                        } else if (str.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+                          const parts = str.split(' ')[0].split('/');
+                          d = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        } else {
+                          const jsDate = new Date(str);
+                          if (!isNaN(jsDate.getTime())) {
+                            const pad = (n: number) => n.toString().padStart(2, '0');
+                            d = `${jsDate.getFullYear()}-${pad(jsDate.getMonth() + 1)}-${pad(jsDate.getDate())}`;
+                          }
+                        }
+                      }
                       const orderId = getAliasValue(row, ORDER_ALIASES);
                       
                       let technical = normalizeSource(getAliasValue(row, PLATFORM_ALIASES) || "Others");
