@@ -313,16 +313,37 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
         throw new Error("No click or commission data found. Check CSV headers.");
       }
 
-      // Step 3: Insert Clicks in batches of 500
-      const BATCH_SIZE = 500;
+      // Step 3: Insert aggregated clicks into shopee_clicks_daily
       let insertedClicks = 0;
-      for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
-        const batch = allRows.slice(i, i + BATCH_SIZE);
-        const { error } = await supabase.from("shopee_clicks").insert(batch);
-        if (error) throw new Error(`Click Insert Error: ${error.message}`);
-        insertedClicks += batch.length;
-        setCurrentProgress(50 + (insertedClicks / allRows.length) * 25);
+      if (Object.keys(MASTER_CLICKS).length > 0) {
+        const clickRowsDaily: any[] = [];
+        Object.values(MASTER_CLICKS).forEach(group => group.forEach(val => {
+          if (val.count > 0) {
+            clickRowsDaily.push({
+              date: val.d,
+              technical_source: val.source,
+              tag_link: val.tag,
+              clicks: val.count,
+              user_id: user.id
+            });
+            insertedClicks += val.count;
+          }
+        }));
+
+        const { error: delErr } = await supabase
+          .from("shopee_clicks_daily")
+          .delete()
+          .in("date", Object.keys(MASTER_CLICKS))
+          .eq("user_id", user.id);
+        
+        if (delErr) throw new Error(`Click Summary Delete Error: ${delErr.message}`);
+
+        if (clickRowsDaily.length > 0) {
+          const { error: insErr } = await supabase.from("shopee_clicks_daily").insert(clickRowsDaily);
+          if (insErr) throw new Error(`Click Summary Insert Error: ${insErr.message}`);
+        }
       }
+      setCurrentProgress(75);
 
       // Step 4: Insert Commissions into daily_records under shopee_click with ANALYTICS_COMM prefix
       let insertedComms = 0;

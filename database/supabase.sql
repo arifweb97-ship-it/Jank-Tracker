@@ -52,15 +52,16 @@ CREATE TABLE public.shopee_commissions (
     CONSTRAINT shopee_comm_unique_order UNIQUE(order_id, user_id)
 );
 
--- 5. RAW DATA: SHOPEE CLICKS
-CREATE TABLE public.shopee_clicks (
+-- 5. CONSOLIDATED DATA: SHOPEE CLICKS DAILY
+CREATE TABLE public.shopee_clicks_daily (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    click_id TEXT,
-    click_time TIMESTAMP WITH TIME ZONE,
-    technical_source TEXT,
-    tag_link TEXT,
+    date DATE NOT NULL,
+    technical_source TEXT NOT NULL,
+    tag_link TEXT NOT NULL,
+    clicks INTEGER DEFAULT 0,
     user_id UUID NOT NULL, -- Mandatory isolation
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT shopee_clicks_daily_unique UNIQUE(date, technical_source, tag_link, user_id)
 );
 
 -- 6. AGGREGATED DATA: DAILY RECORDS (DASHBOARD CENTER)
@@ -130,7 +131,7 @@ CREATE TABLE public.link_matrix (
 ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meta_ads DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopee_commissions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.shopee_clicks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shopee_clicks_daily DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_records DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.access_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;

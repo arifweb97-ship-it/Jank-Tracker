@@ -69,13 +69,11 @@ export default function ClickAnalyticsPage() {
     try {
       let dateFilter: string | null = null; // Always fetch all
 
-      // Fetch clicks from daily_records (Parallel Paginated to bypass 1000 row limit)
+      // Fetch clicks from shopee_clicks_daily (Parallel Paginated to bypass 1000 row limit)
       let clickCountQuery = supabase
-        .from("daily_records")
+        .from("shopee_clicks_daily")
         .select('*', { count: 'exact', head: true })
-        .eq("user_id", user!.id)
-        .eq("category", "shopee_click")
-        .like("source", "ANALYTICS_CLICK >>>%");
+        .eq("user_id", user!.id);
       
       if (dateFilter) clickCountQuery = clickCountQuery.gte("date", dateFilter);
       const { count: clickCount } = await clickCountQuery;
@@ -86,11 +84,9 @@ export default function ClickAnalyticsPage() {
         const promises = [];
         for (let i = 0; i < clickCount; i += pageSize) {
           let query = supabase
-            .from("daily_records")
-            .select("source, clicks, date")
+            .from("shopee_clicks_daily")
+            .select("date, technical_source, tag_link, clicks")
             .eq("user_id", user!.id)
-            .eq("category", "shopee_click")
-            .like("source", "ANALYTICS_CLICK >>>%")
             .range(i, i + pageSize - 1);
           if (dateFilter) query = query.gte("date", dateFilter);
           promises.push(query);
@@ -144,15 +140,8 @@ export default function ClickAnalyticsPage() {
       };
 
       (clicks || []).forEach((c: any) => {
-        let tag = "Untagged";
-        let technical = "Others";
-        if (c.source && c.source.startsWith("ANALYTICS_CLICK >>> ")) {
-          const parts = c.source.split(" >>> ");
-          if (parts.length >= 3) {
-            technical = parts[1];
-            tag = normalizeTag(parts[2]);
-          }
-        }
+        const tag = normalizeTag(c.tag_link);
+        const technical = c.technical_source || "Others";
 
         if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
         tagMap[tag].clicks += Number(c.clicks) || 0;
