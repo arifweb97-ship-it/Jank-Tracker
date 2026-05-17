@@ -355,19 +355,40 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
 
       if (Object.keys(MASTER_CLICKS).length > 0) {
         const clickRows: any[] = [];
+        const clickRowsDaily: any[] = [];
+        
         Object.entries(MASTER_CLICKS).forEach(([d, list]) => list.forEach(val => {
           if (val.count > 0) { // 🛡️ Filter Zero Metrics
             clickRows.push({
               date: d, category: "shopee_click", source: `${val.source} >>> ${val.tag}`, clicks: val.count, updated_at: new Date().toISOString(), user_id: user?.id
             });
+            clickRowsDaily.push({
+              date: d,
+              technical_source: val.source,
+              tag_link: val.tag,
+              clicks: val.count,
+              user_id: user?.id
+            });
           }
         }));
+        
         const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_CLICKS)).eq("category", "shopee_click").eq("user_id", user?.id);
         if (delErr) throw new Error(`Click Delete Error: ${delErr.message}`);
 
         if (clickRows.length > 0) {
           const { error: insErr } = await supabase.from("daily_records").insert(clickRows);
           if (insErr) throw new Error(`Click Insert Error: ${insErr.message}`);
+        }
+
+        // Synchronize to the new shopee_clicks_daily table!
+        const { error: delErrDaily } = await supabase
+          .from("shopee_clicks_daily")
+          .delete()
+          .in("date", Object.keys(MASTER_CLICKS))
+          .eq("user_id", user?.id);
+          
+        if (!delErrDaily && clickRowsDaily.length > 0) {
+          await supabase.from("shopee_clicks_daily").insert(clickRowsDaily);
         }
       }
       
