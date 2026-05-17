@@ -313,7 +313,7 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
         throw new Error("No click or commission data found. Check CSV headers.");
       }
 
-      // Step 3: Insert aggregated clicks into shopee_clicks_daily
+      // Step 3: Insert aggregated clicks into shopee_clicks_daily using UPSERT (No Deletes = No Data Loss!)
       let insertedClicks = 0;
       if (Object.keys(MASTER_CLICKS).length > 0) {
         const clickRowsDaily: any[] = [];
@@ -330,22 +330,16 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
           }
         }));
 
-        const { error: delErr } = await supabase
-          .from("shopee_clicks_daily")
-          .delete()
-          .in("date", Object.keys(MASTER_CLICKS))
-          .eq("user_id", user.id);
-        
-        if (delErr) throw new Error(`Click Summary Delete Error: ${delErr.message}`);
-
         if (clickRowsDaily.length > 0) {
-          const { error: insErr } = await supabase.from("shopee_clicks_daily").insert(clickRowsDaily);
+          const { error: insErr } = await supabase
+            .from("shopee_clicks_daily")
+            .upsert(clickRowsDaily, { onConflict: "date,technical_source,tag_link,user_id" });
           if (insErr) throw new Error(`Click Summary Insert Error: ${insErr.message}`);
         }
       }
       setCurrentProgress(75);
 
-      // Step 4: Insert Commissions into daily_records under shopee_click with ANALYTICS_COMM prefix
+      // Step 4: Insert Commissions into daily_records under shopee_click using UPSERT (No Deletes = No Data Loss!)
       let insertedComms = 0;
       if (Object.keys(MASTER_COMM).length > 0) {
         const commRows: any[] = [];
@@ -357,17 +351,16 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
           }
         }));
         
-        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_COMM)).eq("category", "shopee_click").like("source", "ANALYTICS_COMM >>>%").eq("user_id", user.id);
-        if (delErr) throw new Error(`Comm Delete Error: ${delErr.message}`);
-        
         if (commRows.length > 0) {
-          const { error: insErr } = await supabase.from("daily_records").insert(commRows);
+          const { error: insErr } = await supabase
+            .from("daily_records")
+            .upsert(commRows, { onConflict: "date,category,source,user_id" });
           if (insErr) throw new Error(`Comm Insert Error: ${insErr.message}`);
           insertedComms = commRows.length;
         }
       }
 
-      // Step 5: Insert Clicks into daily_records under shopee_click with ANALYTICS_CLICK prefix
+      // Step 5: Insert Clicks into daily_records under shopee_click using UPSERT (No Deletes = No Data Loss!)
       let insertedClickRecords = 0;
       if (Object.keys(MASTER_CLICKS).length > 0) {
         const clickRows: any[] = [];
@@ -379,11 +372,10 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
           }
         }));
         
-        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_CLICKS)).eq("category", "shopee_click").like("source", "ANALYTICS_CLICK >>>%").eq("user_id", user.id);
-        if (delErr) throw new Error(`Click Delete Error: ${delErr.message}`);
-        
         if (clickRows.length > 0) {
-          const { error: insErr } = await supabase.from("daily_records").insert(clickRows);
+          const { error: insErr } = await supabase
+            .from("daily_records")
+            .upsert(clickRows, { onConflict: "date,category,source,user_id" });
           if (insErr) throw new Error(`Click Insert Error: ${insErr.message}`);
           insertedClickRecords = clickRows.length;
         }

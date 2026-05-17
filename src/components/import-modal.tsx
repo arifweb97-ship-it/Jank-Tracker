@@ -320,9 +320,6 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
       }
 
       if (Object.keys(MASTER_META).length > 0) {
-        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.values(MASTER_META).map(v => v.d)).eq("category", "meta").eq("user_id", user?.id);
-        if (delErr) throw new Error(`Meta Delete Error: ${delErr.message}`);
-        
         const metaBatch = Object.values(MASTER_META)
           .filter(val => val.s > 0 || val.c > 0) // 🛡️ Filter Zero Metrics
           .map(val => ({
@@ -330,7 +327,9 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           }));
         
         if (metaBatch.length > 0) {
-          const { error: insErr } = await supabase.from("daily_records").insert(metaBatch);
+          const { error: insErr } = await supabase
+            .from("daily_records")
+            .upsert(metaBatch, { onConflict: "date,category,source,user_id" });
           if (insErr) throw new Error(`Meta Insert Error: ${insErr.message}`);
         }
       }
@@ -344,11 +343,11 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             });
           }
         }));
-        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_COMM)).eq("category", "shopee_comm").eq("user_id", user?.id);
-        if (delErr) throw new Error(`Comm Delete Error: ${delErr.message}`);
         
         if (commRows.length > 0) {
-          const { error: insErr } = await supabase.from("daily_records").insert(commRows);
+          const { error: insErr } = await supabase
+            .from("daily_records")
+            .upsert(commRows, { onConflict: "date,category,source,user_id" });
           if (insErr) throw new Error(`Comm Insert Error: ${insErr.message}`);
         }
       }
@@ -364,19 +363,10 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           }
         }));
         
-        const { error: delErr } = await supabase
-          .from("daily_records")
-          .delete()
-          .in("date", Object.keys(MASTER_CLICKS))
-          .eq("category", "shopee_click")
-          .not("source", "like", "ANALYTICS_CLICK >>>%")
-          .not("source", "like", "ANALYTICS_COMM >>>%")
-          .eq("user_id", user?.id);
-          
-        if (delErr) throw new Error(`Click Delete Error: ${delErr.message}`);
-
         if (clickRows.length > 0) {
-          const { error: insErr } = await supabase.from("daily_records").insert(clickRows);
+          const { error: insErr } = await supabase
+            .from("daily_records")
+            .upsert(clickRows, { onConflict: "date,category,source,user_id" });
           if (insErr) throw new Error(`Click Insert Error: ${insErr.message}`);
         }
       }
