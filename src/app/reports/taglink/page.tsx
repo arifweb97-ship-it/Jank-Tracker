@@ -37,17 +37,52 @@ export default function TaglinkReportPage() {
       try {
         if (!user?.id) return;
 
-        // Fetch daily_records
-        let commCountQuery = supabase.from("daily_records").select('*', { count: 'exact', head: true }).eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm"]);
+        // 1. Fetch general records (Commissions & Orders) from daily_records
+        let commCountQuery = supabase
+          .from("daily_records")
+          .select('*', { count: 'exact', head: true })
+          .eq("user_id", user.id)
+          .in("category", ["shopee_comm"]);
         const { count: commCount } = await commCountQuery;
+        
         let allRecords: any[] = [];
         if (commCount && commCount > 0) {
           const promises = [];
           for (let i = 0; i < commCount; i += 1000) {
-            promises.push(supabase.from("daily_records").select("source, clicks, commission, orders, category").eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm"]).range(i, i + 999));
+            promises.push(
+              supabase
+                .from("daily_records")
+                .select("source, clicks, commission, orders, category")
+                .eq("user_id", user.id)
+                .in("category", ["shopee_comm"])
+                .range(i, i + 999)
+            );
           }
           const results = await Promise.all(promises);
           allRecords = results.flatMap(res => res.data || []);
+        }
+
+        // 2. Fetch Shopee Clicks from the dedicated shopee_clicks_daily table (Parallelized & Isolated)
+        let clickCountQuery = supabase
+          .from("shopee_clicks_daily")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
+        const { count: totalClicksCount } = await clickCountQuery;
+        
+        let allClicks: any[] = [];
+        if (totalClicksCount && totalClicksCount > 0) {
+          const promises = [];
+          for (let i = 0; i < totalClicksCount; i += 1000) {
+            promises.push(
+              supabase
+                .from("shopee_clicks_daily")
+                .select("tag_link, clicks")
+                .eq("user_id", user.id)
+                .range(i, i + 999)
+            );
+          }
+          const results = await Promise.all(promises);
+          allClicks = results.flatMap(res => res.data || []);
         }
 
         const map: Record<string, TagMetric> = {};
@@ -59,6 +94,7 @@ export default function TaglinkReportPage() {
           return str.replace(/\s+/g, ' ').trim() || "Untagged";
         };
 
+        // Process Commissions & Orders
         allRecords.forEach(r => {
           let tag = "Untagged";
           const parts = (r.source || "").split(" >>> ");
@@ -72,11 +108,19 @@ export default function TaglinkReportPage() {
           const normTag = normalizeTag(tag);
 
           if (!map[normTag]) map[normTag] = { tag: normTag, clicks: 0, orders: 0, commission: 0 };
-          if (r.category === "shopee_click") map[normTag].clicks += (Number(r.clicks) || 0);
           if (r.category === "shopee_comm") {
             map[normTag].commission += (Number(r.commission) || 0);
             map[normTag].orders += (Number(r.orders) || 0);
           }
+        });
+
+        // Process Shopee Clicks directly from the dedicated clicks table
+        allClicks.forEach(c => {
+          const normTag = normalizeTag(c.tag_link);
+          if (!map[normTag]) {
+            map[normTag] = { tag: normTag, clicks: 0, orders: 0, commission: 0 };
+          }
+          map[normTag].clicks += (Number(c.clicks) || 0);
         });
 
         const formatted = Object.values(map)

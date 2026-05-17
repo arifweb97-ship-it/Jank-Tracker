@@ -53,23 +53,59 @@ export default function ClicksReportPage() {
       if (!user?.id) return;
       setLoading(true);
       try {
-        // Fetch daily_records
-        let recordsQuery = supabase.from("daily_records").select('*', { count: 'exact', head: true }).eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm", "meta"]);
+        // 1. Fetch general records (Commissions & Meta Spent) from daily_records
+        let recordsQuery = supabase
+          .from("daily_records")
+          .select('*', { count: 'exact', head: true })
+          .eq("user_id", user.id)
+          .in("category", ["shopee_comm", "meta"]);
         const { count: recCount } = await recordsQuery;
+        
         let allRecords: any[] = [];
         if (recCount && recCount > 0) {
           const promises = [];
           for (let i = 0; i < recCount; i += 1000) {
-            promises.push(supabase.from("daily_records").select("source, clicks, commission, orders, date, category").eq("user_id", user.id).in("category", ["shopee_click", "shopee_comm", "meta"]).range(i, i + 999));
+            promises.push(
+              supabase
+                .from("daily_records")
+                .select("source, clicks, commission, orders, date, category")
+                .eq("user_id", user.id)
+                .in("category", ["shopee_comm", "meta"])
+                .range(i, i + 999)
+            );
           }
           const results = await Promise.all(promises);
           allRecords = results.flatMap(res => res.data || []);
+        }
+
+        // 2. Fetch Shopee Clicks from the dedicated shopee_clicks_daily table (Parallelized & Isolated)
+        let clickCountQuery = supabase
+          .from("shopee_clicks_daily")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
+        const { count: totalClicksCount } = await clickCountQuery;
+        
+        let allClicks: any[] = [];
+        if (totalClicksCount && totalClicksCount > 0) {
+          const promises = [];
+          for (let i = 0; i < totalClicksCount; i += 1000) {
+            promises.push(
+              supabase
+                .from("shopee_clicks_daily")
+                .select("date, technical_source, clicks")
+                .eq("user_id", user.id)
+                .range(i, i + 999)
+            );
+          }
+          const results = await Promise.all(promises);
+          allClicks = results.flatMap(res => res.data || []);
         }
 
         const platformMap: Record<string, PlacementMetric> = {};
         const dailyMap: Record<string, { c: number, v: number }> = {};
         let totalMeta = 0;
 
+        // Process Commissions, Orders, and Meta Spent
         allRecords.forEach(r => {
           const rawSource = r.source || "Others";
           const platform = normalizePlatform(rawSource);
@@ -81,16 +117,29 @@ export default function ClicksReportPage() {
           const d = r.date || "Unknown";
           if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
 
-          if (r.category === "shopee_click") {
-            platformMap[platform].clicks += (Number(r.clicks) || 0);
-            dailyMap[d].c += (Number(r.clicks) || 0);
-          } else if (r.category === "shopee_comm") {
+          if (r.category === "shopee_comm") {
             platformMap[platform].commission += (Number(r.commission) || 0);
             platformMap[platform].orders += (Number(r.orders) || 0);
             dailyMap[d].v += (Number(r.commission) || 0);
           } else if (r.category === "meta") {
             totalMeta += (Number(r.clicks) || 0);
           }
+        });
+
+        // Process Shopee Clicks directly from the dedicated clicks table
+        allClicks.forEach(c => {
+          const rawSource = c.technical_source || "Others";
+          const platform = normalizePlatform(rawSource);
+          
+          if (!platformMap[platform]) {
+            platformMap[platform] = { source: platform, clicks: 0, orders: 0, commission: 0 };
+          }
+
+          const d = c.date || "Unknown";
+          if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
+
+          platformMap[platform].clicks += (Number(c.clicks) || 0);
+          dailyMap[d].c += (Number(c.clicks) || 0);
         });
 
         const formattedSources = Object.values(platformMap)

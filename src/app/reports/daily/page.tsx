@@ -41,32 +41,57 @@ export default function DailyReportPage() {
       if (!user?.id) return;
       setLoading(true);
       try {
+        // 1. Fetch general records (Ad Spend & Commission) from daily_records
+        let recordsQuery = supabase
+          .from("daily_records")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .in("category", ["meta", "shopee_comm"]);
+        const { count: recCount } = await recordsQuery;
+        
         let allRecords: any[] = [];
-        let from = 0;
-        const step = 1000;
-        let fetchMore = true;
-
-        while (fetchMore) {
-          const { data } = await supabase
-            .from("daily_records")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("date", { ascending: false })
-            .range(from, from + step - 1);
-
-          if (data && data.length > 0) {
-            allRecords = [...allRecords, ...data];
-            from += step;
-            if (data.length < step) fetchMore = false;
-          } else {
-            fetchMore = false;
+        if (recCount && recCount > 0) {
+          const promises = [];
+          for (let i = 0; i < recCount; i += 1000) {
+            promises.push(
+              supabase
+                .from("daily_records")
+                .select("*")
+                .eq("user_id", user.id)
+                .in("category", ["meta", "shopee_comm"])
+                .range(i, i + 999)
+            );
           }
+          const results = await Promise.all(promises);
+          allRecords = results.flatMap(res => res.data || []);
         }
 
-        if (allRecords.length === 0) return;
+        // 2. Fetch Shopee Clicks from the dedicated shopee_clicks_daily table (Parallelized & Isolated)
+        let clickCountQuery = supabase
+          .from("shopee_clicks_daily")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
+        const { count: totalClicksCount } = await clickCountQuery;
+        
+        let allClicks: any[] = [];
+        if (totalClicksCount && totalClicksCount > 0) {
+          const promises = [];
+          for (let i = 0; i < totalClicksCount; i += 1000) {
+            promises.push(
+              supabase
+                .from("shopee_clicks_daily")
+                .select("date, clicks")
+                .eq("user_id", user.id)
+                .range(i, i + 999)
+            );
+          }
+          const results = await Promise.all(promises);
+          allClicks = results.flatMap(res => res.data || []);
+        }
 
         const dateGroups: Record<string, DailyRecord> = {};
 
+        // Process Ad Spend, Commissions, and Meta Clicks
         allRecords.forEach(rec => {
           if (!dateGroups[rec.date]) {
             dateGroups[rec.date] = { 
@@ -80,9 +105,20 @@ export default function DailyReportPage() {
             dateGroups[rec.date].meta_clicks += Number(rec.clicks) || 0;
           } else if (rec.category === 'shopee_comm') {
             dateGroups[rec.date].commission += Number(rec.commission) || 0;
-          } else if (rec.category === 'shopee_click') {
-            dateGroups[rec.date].shopee_clicks += Number(rec.clicks) || 0;
           }
+        });
+
+        // Process Shopee Clicks directly from the dedicated clicks table
+        allClicks.forEach(c => {
+          if (!c.date) return;
+          const dateStr = c.date.split("T")[0];
+          if (!dateGroups[dateStr]) {
+            dateGroups[dateStr] = { 
+              date: dateStr, spend: 0, commission: 0, profit: 0, 
+              meta_clicks: 0, shopee_clicks: 0, roas: 0, roi: 0 
+            };
+          }
+          dateGroups[dateStr].shopee_clicks += Number(c.clicks) || 0;
         });
 
         // Finalize calculations
