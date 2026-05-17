@@ -7,32 +7,50 @@ const supabaseKey = env.match(/NEXT_PUBLIC_SUPABASE_ANON_KEY=[\"']?(.*?)[\"']?(?
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-  console.log("🚀 Starting daily click summary migration...");
+  console.log("🚀 Starting daily click summary migration (Paginated)...");
 
-  // 1. Fetch pre-aggregated click records from daily_records
+  // 1. Fetch pre-aggregated click records from daily_records in pages
   console.log("Reading existing aggregates from daily_records table...");
-  const { data: records, error: fetchErr } = await supabase
+  const { count, error: countErr } = await supabase
     .from("daily_records")
-    .select("date, source, clicks, user_id")
+    .select('*', { count: 'exact', head: true })
     .eq("category", "shopee_click")
     .like("source", "ANALYTICS_CLICK >>>%");
 
-  if (fetchErr) {
-    console.error("❌ Error fetching aggregates:", fetchErr.message);
-    console.error("⚠️ Make sure you have completed the initial migration first!");
+  if (countErr) {
+    console.error("❌ Error counting aggregates:", countErr.message);
     return;
   }
 
-  console.log(`Found ${records.length} aggregated records in daily_records.`);
+  console.log(`Found a total of ${count} records to migrate.`);
 
-  if (records.length === 0) {
+  let allRecords = [];
+  const pageSize = 1000;
+  for (let i = 0; i < count; i += pageSize) {
+    const { data: chunk, error: fetchErr } = await supabase
+      .from("daily_records")
+      .select("date, source, clicks, user_id")
+      .eq("category", "shopee_click")
+      .like("source", "ANALYTICS_CLICK >>>%")
+      .range(i, i + pageSize - 1);
+
+    if (fetchErr) {
+      console.error(`❌ Error fetching chunk [${i}]:`, fetchErr.message);
+      break;
+    }
+    allRecords = allRecords.concat(chunk || []);
+  }
+
+  console.log(`Successfully fetched ${allRecords.length} records from daily_records.`);
+
+  if (allRecords.length === 0) {
     console.log("No records to migrate.");
     return;
   }
 
   // 2. Parse and format for shopee_clicks_daily
   const parsedRows = [];
-  records.forEach(r => {
+  allRecords.forEach(r => {
     let source = "Others";
     let tag = "Untagged";
     
@@ -63,7 +81,6 @@ async function run() {
 
   if (delErr) {
     console.error("❌ Error clearing shopee_clicks_daily:", delErr.message);
-    console.log("⚠️ If the table doesn't exist yet, please run the SQL script in your Supabase SQL Editor first!");
     return;
   }
   console.log("Table cleared.");
