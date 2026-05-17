@@ -154,6 +154,7 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
     }[] = [];
 
     const MASTER_COMM: Record<string, { amount: number, orders: number, d: string, tag: string, source: string }[]> = {};
+    const MASTER_CLICKS: Record<string, { count: number, d: string, tag: string, source: string }[]> = {};
     const fingerprints = new Set<string>();
     const shopeeCommFingerprints = new Set<string>();
 
@@ -278,6 +279,22 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
                       tag_link: tagLink || "Untagged",
                       user_id: user.id
                     });
+
+                    // Aggregate for daily_records
+                    let d = null;
+                    let str = String(clickTime).trim();
+                    if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
+                      d = str.substring(0, 10);
+                    }
+                    if (d) {
+                      MASTER_CLICKS[d] = MASTER_CLICKS[d] || [];
+                      const existing = MASTER_CLICKS[d].find(x => x.tag === tagLink && x.source === technical);
+                      if (existing) {
+                        existing.count += 1;
+                      } else {
+                        MASTER_CLICKS[d].push({ count: 1, d, tag: tagLink, source: technical });
+                      }
+                    }
                   }
                 });
 
@@ -326,6 +343,28 @@ export function ClickUploadModal({ isOpen, onClose, onSuccess }: ClickUploadModa
           const { error: insErr } = await supabase.from("daily_records").insert(commRows);
           if (insErr) throw new Error(`Comm Insert Error: ${insErr.message}`);
           insertedComms = commRows.length;
+        }
+      }
+
+      // Step 5: Insert Clicks into daily_records under shopee_click with ANALYTICS_CLICK prefix
+      let insertedClickRecords = 0;
+      if (Object.keys(MASTER_CLICKS).length > 0) {
+        const clickRows: any[] = [];
+        Object.values(MASTER_CLICKS).forEach(group => group.forEach(val => {
+          if (val.count > 0) {
+            clickRows.push({
+              date: val.d, category: "shopee_click", source: `ANALYTICS_CLICK >>> ${val.source} >>> ${val.tag}`, clicks: val.count, updated_at: new Date().toISOString(), user_id: user.id
+            });
+          }
+        }));
+        
+        const { error: delErr } = await supabase.from("daily_records").delete().in("date", Object.keys(MASTER_CLICKS)).eq("category", "shopee_click").like("source", "ANALYTICS_CLICK >>>%").eq("user_id", user.id);
+        if (delErr) throw new Error(`Click Delete Error: ${delErr.message}`);
+        
+        if (clickRows.length > 0) {
+          const { error: insErr } = await supabase.from("daily_records").insert(clickRows);
+          if (insErr) throw new Error(`Click Insert Error: ${insErr.message}`);
+          insertedClickRecords = clickRows.length;
         }
       }
 

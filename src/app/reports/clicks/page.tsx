@@ -66,19 +66,6 @@ export default function ClicksReportPage() {
           allRecords = results.flatMap(res => res.data || []);
         }
 
-        // Fetch shopee_clicks table
-        let clickCountQuery = supabase.from("shopee_clicks").select('*', { count: 'exact', head: true }).eq("user_id", user.id);
-        const { count: clickCount } = await clickCountQuery;
-        let allShopeeClicks: any[] = [];
-        if (clickCount && clickCount > 0) {
-          const promises = [];
-          for (let i = 0; i < clickCount; i += 1000) {
-            promises.push(supabase.from("shopee_clicks").select("technical_source, click_time").eq("user_id", user.id).range(i, i + 999));
-          }
-          const results = await Promise.all(promises);
-          allShopeeClicks = results.flatMap(res => res.data || []);
-        }
-
         const platformMap: Record<string, PlacementMetric> = {};
         const dailyMap: Record<string, { c: number, v: number }> = {};
         let totalMeta = 0;
@@ -104,23 +91,6 @@ export default function ClicksReportPage() {
           } else if (r.category === "meta") {
             totalMeta += (Number(r.clicks) || 0);
           }
-        });
-
-        allShopeeClicks.forEach(c => {
-          const platform = normalizePlatform(c.technical_source || "Others");
-          if (!platformMap[platform]) {
-            platformMap[platform] = { source: platform, clicks: 0, orders: 0, commission: 0 };
-          }
-          platformMap[platform].clicks += 1;
-
-          let d = "Unknown";
-          if (c.click_time) {
-            const dateObj = new Date(c.click_time);
-            const pad = (n: number) => n.toString().padStart(2, '0');
-            d = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`;
-          }
-          if (!dailyMap[d]) dailyMap[d] = { c: 0, v: 0 };
-          dailyMap[d].c += 1;
         });
 
         const formattedSources = Object.values(platformMap)

@@ -69,13 +69,15 @@ export default function ClickAnalyticsPage() {
     try {
       let dateFilter: string | null = null; // Always fetch all
 
-      // Fetch clicks from shopee_clicks (Parallel Paginated to bypass 1000 row limit)
+      // Fetch clicks from daily_records (Parallel Paginated to bypass 1000 row limit)
       let clickCountQuery = supabase
-        .from("shopee_clicks")
+        .from("daily_records")
         .select('*', { count: 'exact', head: true })
-        .eq("user_id", user!.id);
+        .eq("user_id", user!.id)
+        .eq("category", "shopee_click")
+        .like("source", "ANALYTICS_CLICK >>>%");
       
-      if (dateFilter) clickCountQuery = clickCountQuery.gte("click_time", dateFilter);
+      if (dateFilter) clickCountQuery = clickCountQuery.gte("date", dateFilter);
       const { count: clickCount } = await clickCountQuery;
       
       let allClicks: any[] = [];
@@ -84,11 +86,13 @@ export default function ClickAnalyticsPage() {
         const promises = [];
         for (let i = 0; i < clickCount; i += pageSize) {
           let query = supabase
-            .from("shopee_clicks")
-            .select("tag_link, technical_source, click_time")
+            .from("daily_records")
+            .select("source, clicks, date")
             .eq("user_id", user!.id)
+            .eq("category", "shopee_click")
+            .like("source", "ANALYTICS_CLICK >>>%")
             .range(i, i + pageSize - 1);
-          if (dateFilter) query = query.gte("click_time", dateFilter);
+          if (dateFilter) query = query.gte("date", dateFilter);
           promises.push(query);
         }
         const results = await Promise.all(promises);
@@ -140,23 +144,26 @@ export default function ClickAnalyticsPage() {
       };
 
       (clicks || []).forEach((c: any) => {
-        const tag = normalizeTag(c.tag_link);
-        if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
-        tagMap[tag].clicks += 1;
+        let tag = "Untagged";
+        let technical = "Others";
+        if (c.source && c.source.startsWith("ANALYTICS_CLICK >>> ")) {
+          const parts = c.source.split(" >>> ");
+          if (parts.length >= 3) {
+            technical = parts[1];
+            tag = normalizeTag(parts[2]);
+          }
+        }
 
-        const plat = c.technical_source || "Others";
-        platMap[plat] = (platMap[plat] || 0) + 1;
+        if (!tagMap[tag]) tagMap[tag] = { clicks: 0, orders: 0, commission: 0 };
+        tagMap[tag].clicks += Number(c.clicks) || 0;
+
+        platMap[technical] = (platMap[technical] || 0) + (Number(c.clicks) || 0);
 
         // Daily aggregation
-        let dateStr = "unknown";
-        if (c.click_time) {
-          const d = new Date(c.click_time);
-          const pad = (n: number) => n.toString().padStart(2, '0');
-          dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-        }
+        const dateStr = c.date ? c.date.split("T")[0] : "unknown";
         const dailyKey = `${dateStr}|${tag}`;
         if (!dailyMap[dailyKey]) dailyMap[dailyKey] = { clicks: 0, orders: 0, commission: 0 };
-        dailyMap[dailyKey].clicks += 1;
+        dailyMap[dailyKey].clicks += Number(c.clicks) || 0;
       });
 
       // Process aggregated commission/orders from daily_records

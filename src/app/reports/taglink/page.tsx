@@ -50,19 +50,6 @@ export default function TaglinkReportPage() {
           allRecords = results.flatMap(res => res.data || []);
         }
 
-        // Fetch shopee_clicks table
-        let clickCountQuery = supabase.from("shopee_clicks").select('*', { count: 'exact', head: true }).eq("user_id", user.id);
-        const { count: clickCount } = await clickCountQuery;
-        let allShopeeClicks: any[] = [];
-        if (clickCount && clickCount > 0) {
-          const promises = [];
-          for (let i = 0; i < clickCount; i += 1000) {
-            promises.push(supabase.from("shopee_clicks").select("tag_link").eq("user_id", user.id).range(i, i + 999));
-          }
-          const results = await Promise.all(promises);
-          allShopeeClicks = results.flatMap(res => res.data || []);
-        }
-
         const map: Record<string, TagMetric> = {};
 
         const normalizeTag = (val: string | null): string => {
@@ -73,8 +60,15 @@ export default function TaglinkReportPage() {
         };
 
         allRecords.forEach(r => {
+          let tag = "Untagged";
           const parts = (r.source || "").split(" >>> ");
-          const tag = parts.length > 1 ? parts[1] : (parts[0] || "Untagged");
+          if (parts.length === 3) {
+            tag = parts[2];
+          } else if (parts.length === 2) {
+            tag = parts[1];
+          } else {
+            tag = parts[0] || "Untagged";
+          }
           const normTag = normalizeTag(tag);
 
           if (!map[normTag]) map[normTag] = { tag: normTag, clicks: 0, orders: 0, commission: 0 };
@@ -83,12 +77,6 @@ export default function TaglinkReportPage() {
             map[normTag].commission += (Number(r.commission) || 0);
             map[normTag].orders += (Number(r.orders) || 0);
           }
-        });
-
-        allShopeeClicks.forEach(c => {
-          const normTag = normalizeTag(c.tag_link);
-          if (!map[normTag]) map[normTag] = { tag: normTag, clicks: 0, orders: 0, commission: 0 };
-          map[normTag].clicks += 1;
         });
 
         const formatted = Object.values(map)
