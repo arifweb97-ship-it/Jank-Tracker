@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { HelpCircle, X, AlertTriangle, Lightbulb } from "lucide-react";
 
 interface UploadTutorialProps {
-  type: "dashboard" | "orders" | "clicks";
+  type: "dashboard" | "orders";
 }
 
 export function UploadTutorial({ type }: UploadTutorialProps) {
@@ -50,25 +50,6 @@ export function UploadTutorial({ type }: UploadTutorialProps) {
         }
       ],
       warning: "Upload file Laporan Pesanan ke Dasbor (Universal Sync) akan otomatis ditolak oleh sistem untuk mencegah error."
-    },
-    clicks: {
-      title: "Tutorial Upload Data Klik",
-      subtitle: "Click Analytics",
-      steps: [
-        {
-          title: "Download CSV Klik (Shopee)",
-          desc: "Buka Shopee Affiliate > Laporan > Laporan Klik. Pilih rentang waktu dan Export data ke CSV."
-        },
-        {
-          title: "Isi File Klik",
-          desc: "File ini biasanya berisi ribuan baris dengan nama 'Klik_...csv'. Di dalamnya ada kolom Click ID, Tag Link, dan Platform."
-        },
-        {
-          title: "Upload Khusus Klik",
-          desc: "Upload file CSV Klik di halaman ini. Sistem akan mengisolasi data klik ini khusus untuk keperluan analisa konversi."
-        }
-      ],
-      warning: "File klik berukuran besar. Sistem akan memprosesnya secara bertahap dalam hitungan detik. Harap tunggu hingga selesai."
     }
   };
 

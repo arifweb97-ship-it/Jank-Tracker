@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark scroll-smooth">
-      <body className={`${inter.className} bg-slate-950 overflow-x-hidden min-h-screen relative`}>
+      <body className={`${inter.className} bg-slate-950 overflow-x-clip min-h-screen relative`}>
         {/* Global Ambient Glow */}
         <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-[#C50337]/5 blur-[120px] pointer-events-none z-0" />
         

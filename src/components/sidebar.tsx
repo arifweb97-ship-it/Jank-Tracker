@@ -40,7 +40,6 @@ export function Sidebar({ isOpen }: { isOpen?: boolean }) {
     { name: "Placement Reports", href: "/reports/clicks", icon: MousePointer2 },
     { name: "Taglink Reports", href: "/reports/taglink", icon: Tag },
     { name: "Order Reports", href: "/reports/orders", icon: ShoppingCart },
-    { name: "Click Analytics", href: "/analytics/clicks", icon: Crosshair },
     { name: "Link Matrix", href: "/links", icon: Link2 },
     { name: "Ad Balance", href: "/deposits", icon: DollarSign },
   ];

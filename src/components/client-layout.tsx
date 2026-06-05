@@ -21,7 +21,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="flex relative z-10 w-full min-h-screen overflow-x-hidden">
+    <div className="flex relative z-10 w-full min-h-screen overflow-x-clip">
       {showSidebar && (
         <>
           <MobileHeader 

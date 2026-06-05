@@ -354,11 +354,19 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
 
       if (Object.keys(MASTER_CLICKS).length > 0) {
         const clickRows: any[] = [];
+        const clickRowsDaily: any[] = [];
         
         Object.entries(MASTER_CLICKS).forEach(([d, list]) => list.forEach(val => {
           if (val.count > 0) { // 🛡️ Filter Zero Metrics
             clickRows.push({
               date: d, category: "shopee_click", source: `${val.source} >>> ${val.tag}`, clicks: val.count, updated_at: new Date().toISOString(), user_id: user?.id
+            });
+            clickRowsDaily.push({
+              date: d,
+              technical_source: val.source,
+              tag_link: val.tag,
+              clicks: val.count,
+              user_id: user?.id
             });
           }
         }));
@@ -368,6 +376,13 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
             .from("daily_records")
             .upsert(clickRows, { onConflict: "date,category,source,user_id" });
           if (insErr) throw new Error(`Click Insert Error: ${insErr.message}`);
+        }
+
+        if (clickRowsDaily.length > 0) {
+          const { error: dailyErr } = await supabase
+            .from("shopee_clicks_daily")
+            .upsert(clickRowsDaily, { onConflict: "date,technical_source,tag_link,user_id" });
+          if (dailyErr) throw new Error(`Click Daily Insert Error: ${dailyErr.message}`);
         }
       }
       
